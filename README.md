@@ -1,201 +1,115 @@
 # Chartink Backtesting Dashboard
 
-A comprehensive web-based backtesting dashboard for Chartink scanner signals using Angel One SmartAPI historical data.
+A comprehensive web-based backtesting dashboard for Chartink scanner signals using Yahoo Finance historical data.
 
 ## Features
 
 - **CSV Upload**: Upload Chartink scanner signals directly via drag-and-drop interface
-- **SmartAPI Integration**: Fetch real-time historical OHLC data from Angel One
+- **Yahoo Finance Integration**: Fetch real-time historical OHLC data from Yahoo Finance (no API keys required!)
 - **Advanced Backtesting**: Support for Stop Loss, Target Profit, and time-based exits
 - **Performance Metrics**: Win rate, drawdown, risk-reward ratio, and more
 - **Interactive Charts**: Equity curve and returns distribution visualization
-- **Export Results**: Download backtest results to Excel format
+- **Export Results**: Download backtest results to CSV format
 - **Railway Ready**: Easy deployment on Railway.com with no server management
 
 ## Quick Start
 
-### 1. Setup Angel One SmartAPI Credentials
+### 1. No API Credentials Required!
 
-1. Create an account at [Angel One](https://www.angelone.in/)
-2. Generate API credentials from your account settings
-3. Set up environment variables:
+This dashboard uses Yahoo Finance (yfinance) for historical data, which is completely free and doesn't require any API keys or authentication.
 
-```bash
-# Copy the example file
-cp env.example .env
+### 2. Upload Your Chartink CSV
 
-# Edit .env with your credentials
-ANGEL_API_KEY=your_api_key_here
-ANGEL_CLIENT_CODE=your_client_code_here
-ANGEL_PIN=your_pin_here
-ANGEL_TOTP_SECRET=your_totp_secret_here
-```
+1. Export your Chartink scanner signals as CSV
+2. Upload the CSV file to the dashboard
+3. The dashboard supports the format: `date, symbol, marketcapname, sector`
 
-### 2. Local Development
+### 3. Configure Backtest Parameters
 
-```bash
-# Install dependencies
-pip install -r requirements.txt
+- **Stop Loss %**: Set your stop loss percentage (e.g., 5%)
+- **Target Profit %**: Set your target profit percentage (e.g., 10%)
+- **Max Holding Days**: Maximum days to hold a position (e.g., 10 days)
 
-# Run the application
-python app.py
-```
+### 4. Run Backtest
 
-Visit `http://localhost:5000` to access the dashboard.
+Click "Run Backtest" to analyze your strategy performance.
 
-### 3. Deploy to Railway.com
+### 5. View Results
 
-1. Fork this repository to your GitHub account
-2. Connect your GitHub account to [Railway.com](https://railway.app/)
-3. Create a new project and connect your repository
-4. Add environment variables in Railway dashboard:
-   - `ANGEL_API_KEY`
-   - `ANGEL_CLIENT_CODE`
-   - `ANGEL_PIN`
-   - `ANGEL_TOTP_SECRET`
-5. Deploy!
+- **Performance Metrics**: Win rate, average returns, max drawdown
+- **Equity Curve**: Visual representation of your strategy performance
+- **Trade Details**: Individual trade results and analysis
+- **Export**: Download results as CSV for further analysis
 
-## Usage Guide
+## CSV Format
 
-### Step 1: Prepare Your CSV File
+The dashboard supports Chartink CSV exports with the following format:
 
-Your CSV file should contain the following columns:
-- `date`: Entry date and time in DD-MM-YYYY H:MM AM/PM format
-- `symbol`: Stock symbol (e.g., "YATHARTH", "KAMATHOTEL")
-- `marketcapname`: Market cap category (e.g., "Midcap", "Smallcap")
-- `sector`: Industry sector (e.g., "Pharmaceuticals", "Services")
-
-Example CSV:
 ```csv
 date,symbol,marketcapname,sector
 06-08-2025 10:15 am,YATHARTH,Midcap,Pharmaceuticals
 06-08-2025 10:15 am,KAMATHOTEL,Smallcap,Services
-06-08-2025 11:15 am,YATHARTH,Midcap,Pharmaceuticals
 ```
 
-### Step 2: Upload and Configure
+## Deployment
 
-1. **Upload CSV**: Drag and drop your CSV file or click "Choose File"
-2. **Set Parameters**:
-   - **Stop Loss (%)**: Maximum loss percentage (e.g., 5%)
-   - **Target Profit (%)**: Target profit percentage (e.g., 10%)
-   - **Max Holding Days**: Maximum days to hold a position (e.g., 10)
-3. **Run Backtest**: Click "Run Backtest" to start the analysis
+### Railway.com (Recommended)
 
-### Step 3: Analyze Results
+1. Fork this repository
+2. Connect your GitHub account to Railway
+3. Deploy from GitHub
+4. No environment variables needed!
 
-The dashboard displays:
+### Local Development
 
-#### Performance Metrics
-- **Win Rate**: Percentage of profitable trades
-- **Total Trades**: Number of trades analyzed
-- **Average Return**: Mean return per trade
-- **Risk-Reward Ratio**: Average win to average loss ratio
-- **Max Drawdown**: Maximum peak-to-trough decline
-- **Best/Worst Trade**: Highest and lowest individual returns
-- **Average Holding Days**: Mean holding period
-
-#### Visualizations
-- **Equity Curve**: Cumulative P&L over time
-- **Returns Distribution**: Histogram of trade returns
-
-#### Export Options
-- Download results to Excel for further analysis
-
-## Backtesting Logic
-
-### Entry Logic
-- Uses 1-hour candle price at the specified entry time
-- If no exact 1-hour candle exists, uses the closest earlier candle
-- Entry price is the open price of the selected candle
-
-### Exit Logic
-1. **Stop Loss**: Exit if price hits the stop loss level
-2. **Target Profit**: Exit if price hits the target profit level
-3. **Time-based Exit**: Exit after maximum holding days if neither SL nor TP is hit
-4. **End of Data**: Exit at the last available price if data runs out
-
-### Data Handling
-- Fetches historical data from Angel One SmartAPI
-- Handles missing data gracefully by skipping problematic trades
-- Includes rate limiting to respect API limits
-- Supports both hourly and daily data for accurate backtesting
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run the app: `python app.py`
+4. Open http://localhost:5000
 
 ## Technical Details
 
-### Architecture
 - **Backend**: Flask (Python)
-- **Frontend**: HTML5, CSS3, JavaScript, Bootstrap 5
-- **Charts**: Plotly.js for interactive visualizations
-- **Data Processing**: Pandas for data manipulation
-- **API Integration**: Angel One SmartAPI for historical data
+- **Data Source**: Yahoo Finance (yfinance)
+- **Frontend**: Bootstrap 5 + Plotly.js
+- **Database**: In-memory (no database required)
+- **Deployment**: Railway.com ready
 
-### File Structure
-```
-├── app.py                 # Main Flask application
-├── smartapi_client.py     # Angel One API integration
-├── backtest_engine.py     # Backtesting logic
-├── requirements.txt       # Python dependencies
-├── Procfile              # Railway deployment config
-├── railway.json          # Railway configuration
-├── templates/
-│   └── index.html        # Main dashboard template
-├── static/
-│   ├── css/              # Custom styles
-│   └── js/
-│       └── app.js        # Frontend JavaScript
-└── README.md             # This file
-```
+## Supported Exchanges
 
-### API Endpoints
-- `GET /`: Main dashboard
-- `POST /upload`: Upload CSV file
-- `POST /run_backtest`: Run backtest with parameters
-- `GET /export_results`: Download results as Excel
-- `GET /health`: Health check endpoint
+- **NSE**: National Stock Exchange of India
+- **BSE**: Bombay Stock Exchange
+- **NSE F&O**: NSE Futures & Options
+- **BSE F&O**: BSE Futures & Options
+
+## Data Coverage
+
+- **Historical Data**: Available for most Indian stocks
+- **Timeframes**: 1 minute, 5 minutes, 15 minutes, 30 minutes, 1 hour, 1 day
+- **Data Quality**: High-quality OHLC data from Yahoo Finance
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **"No data found for stock"**
-   - Check if the stock symbol is correct
-   - Ensure the stock is listed on NSE
-   - Verify the date range has available data
+1. **No data found for symbol**: The stock symbol might not be available on Yahoo Finance
+2. **CSV format error**: Ensure your CSV has the correct format with date and symbol columns
+3. **Deployment issues**: Check Railway logs for any deployment errors
 
-2. **"Authentication failed"**
-   - Verify your Angel One API credentials
-   - Check if your account has API access enabled
-   - Ensure TOTP secret is correct for 2FA
+### Getting Help
 
-3. **"Rate limit exceeded"**
-   - The system includes automatic rate limiting
-   - Wait a few minutes and try again
-   - Consider reducing the number of trades in your CSV
-
-4. **"Missing required columns"**
-   - Ensure your CSV has: stock_name, entry_date, entry_time
-   - Check column names match exactly (case-sensitive)
-   - Verify date format is YYYY-MM-DD
-
-### Performance Tips
-
-- **Batch Size**: Process smaller batches of trades for faster results
-- **Date Range**: Limit your CSV to recent data for better performance
-- **API Limits**: The system respects Angel One's rate limits automatically
-
-## Support
-
-For issues and questions:
-1. Check the troubleshooting section above
-2. Review Angel One SmartAPI documentation
-3. Ensure your CSV format matches the requirements
-4. Verify your API credentials are correct
+- Check the Railway deployment logs
+- Verify your CSV format matches the expected structure
+- Ensure the stock symbols are valid NSE/BSE symbols
 
 ## License
 
-This project is for educational and personal use. Please ensure compliance with Angel One's terms of service and applicable regulations.
+This project is open source and available under the MIT License.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Disclaimer
 
-This tool is for backtesting purposes only. Past performance does not guarantee future results. Always do your own research before making investment decisions. The authors are not responsible for any financial losses.
+This tool is for educational and research purposes only. Always do your own research before making investment decisions. Past performance does not guarantee future results.

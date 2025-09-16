@@ -11,7 +11,7 @@ import time
 from io import BytesIO
 import base64
 from backtest_engine import BacktestEngine
-from smartapi_client import SmartAPIClient
+from data_client import DataClient
 import logging
 
 # Configure logging
@@ -25,102 +25,11 @@ app.secret_key = 'your-secret-key-here'
 # Global variables to store data
 uploaded_data = None
 backtest_results = None
-stored_credentials = None
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/setup')
-def setup():
-    return render_template('setup.html')
-
-@app.route('/save_credentials', methods=['POST'])
-def save_credentials():
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['api_key', 'client_code', 'pin']
-        missing_fields = [field for field in required_fields if not data.get(field)]
-        
-        if missing_fields:
-            return jsonify({
-                'error': f'Missing required fields: {", ".join(missing_fields)}'
-            }), 400
-        
-        # Save credentials to environment (in production, use proper secret management)
-        credentials = {
-            'ANGEL_API_KEY': data['api_key'],
-            'ANGEL_CLIENT_CODE': data['client_code'],
-            'ANGEL_PIN': data['pin'],
-            'ANGEL_TOTP_SECRET': data.get('totp_secret', '')
-        }
-        
-        # Test the credentials
-        from smartapi_client import SmartAPIClient
-        api_client = SmartAPIClient()
-        
-        # Set credentials using the new method
-        api_client.set_credentials(
-            api_key=data['api_key'],
-            client_code=data['client_code'],
-            pin=data['pin'],
-            totp_secret=data.get('totp_secret', '')
-        )
-        
-        # Test the credentials with actual SmartAPI authentication
-        try:
-            # Basic format validation first
-            if len(data['api_key']) < 5:
-                return jsonify({
-                    'error': 'API Key appears to be too short. Please check your API Key.'
-                }), 400
-            
-            if len(data['client_code']) < 3:
-                return jsonify({
-                    'error': 'Client Code appears to be too short. Please check your Client Code.'
-                }), 400
-            
-            if len(data['pin']) < 4:
-                return jsonify({
-                    'error': 'PIN appears to be too short. Please check your PIN.'
-                }), 400
-            
-            # Test actual authentication
-            logger.info("Testing SmartAPI authentication...")
-            login_result = api_client.login()
-            
-            if login_result:
-                # Store credentials globally for this session
-                global stored_credentials
-                stored_credentials = {
-                    'api_key': data['api_key'],
-                    'client_code': data['client_code'],
-                    'pin': data['pin'],
-                    'totp_secret': data.get('totp_secret', '')
-                }
-                
-                logger.info("Credentials validated and stored successfully")
-                return jsonify({
-                    'success': True,
-                    'message': 'Credentials verified and saved successfully! You can now run backtests.'
-                })
-            else:
-                logger.error("SmartAPI authentication failed")
-                return jsonify({
-                    'error': 'Authentication failed. Please check your API key, client code, PIN, and ensure your account has API access enabled.'
-                }), 400
-            
-        except Exception as auth_error:
-            logger.error(f"Authentication error: {str(auth_error)}")
-            return jsonify({
-                'error': f'Authentication error: {str(auth_error)}. Please check your credentials and try again.'
-            }), 400
-            
-    except Exception as e:
-        logger.error(f"Credentials error: {str(e)}")
-        return jsonify({'error': f'Error saving credentials: {str(e)}'}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -186,22 +95,15 @@ def run_backtest():
         target_profit_pct = float(data.get('target_profit_pct', 10))
         max_holding_days = int(data.get('max_holding_days', 10))
         
-        # Check if credentials are available
-        global stored_credentials
-        if not stored_credentials:
-            return jsonify({'error': 'No credentials found. Please setup your Angel One API credentials first.'}), 400
+        # Use the new data client (no credentials required!)
+        data_client = DataClient()
         
-        # Initialize SmartAPI client with stored credentials
-        api_client = SmartAPIClient()
-        api_client.set_credentials(
-            api_key=stored_credentials['api_key'],
-            client_code=stored_credentials['client_code'],
-            pin=stored_credentials['pin'],
-            totp_secret=stored_credentials.get('totp_secret', '')
-        )
+        # Test the data client
+        if not data_client.test_connection():
+            return jsonify({'error': 'Data source is not available. Please try again later.'}), 500
         
-        # Initialize backtest engine
-        engine = BacktestEngine(api_client)
+        # Initialize backtest engine with data client
+        engine = BacktestEngine(data_client)
         
         # Run backtest
         logger.info("Starting backtest...")
@@ -264,118 +166,45 @@ def health_check():
 
 @app.route('/credentials_status')
 def credentials_status():
-    global stored_credentials
+    # No credentials needed with the new data client!
     return jsonify({
-        'has_credentials': stored_credentials is not None,
-        'client_code': stored_credentials['client_code'] if stored_credentials else None
+        'has_credentials': True,
+        'data_source': 'yfinance (Yahoo Finance)',
+        'message': 'No API credentials required!'
     })
 
-@app.route('/test_auth', methods=['POST'])
-def test_auth():
-    """Test authentication with detailed debugging"""
-    try:
-        data = request.get_json()
-        
-        # Create a test client
-        from smartapi_client import SmartAPIClient
-        api_client = SmartAPIClient()
-        
-        # Set credentials using the new method
-        api_client.set_credentials(
-            api_key=data.get('api_key', ''),
-            client_code=data.get('client_code', ''),
-            pin=data.get('pin', ''),
-            totp_secret=data.get('totp_secret', '')
-        )
-        
-        # Test login
-        result = api_client.login()
-        
-        return jsonify({
-            'success': result,
-            'message': 'Authentication test completed',
-            'debug_info': {
-                'api_key_length': len(data.get('api_key', '')),
-                'client_code': data.get('client_code', ''),
-                'has_totp': bool(data.get('totp_secret', '')),
-                'has_auth_token': bool(api_client.auth_token)
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Test auth error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': f'Test failed: {str(e)}'
-        }), 500
 
-@app.route('/test_smartapi')
-def test_smartapi():
-    """Test if SmartAPI library is available"""
+@app.route('/test_data_source')
+def test_data_source():
+    """Test if data source is working"""
     try:
-        from SmartApi import SmartConnect
-        return jsonify({
-            'success': True,
-            'message': 'SmartAPI library is available',
-            'version': 'SmartConnect imported successfully'
-        })
-    except ImportError as e:
-        return jsonify({
-            'success': False,
-            'error': f'SmartAPI library not available: {str(e)}',
-            'suggestion': 'Please install smartapi-python: pip install smartapi-python'
-        }), 500
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Unexpected error: {str(e)}'
-        }), 500
-
-@app.route('/test_totp', methods=['POST'])
-def test_totp():
-    """Test TOTP secret format"""
-    try:
-        data = request.get_json()
-        totp_secret = data.get('totp_secret', '')
+        data_client = DataClient()
+        success = data_client.test_connection()
         
-        if not totp_secret:
-            return jsonify({
-                'success': False,
-                'error': 'TOTP secret is required'
-            }), 400
-        
-        # Clean the secret
-        clean_secret = totp_secret.strip().upper().replace(' ', '')
-        
-        # Test Base32 validation
-        import base64
-        try:
-            base64.b32decode(clean_secret)
-            
-            # Test TOTP generation
-            import pyotp
-            totp = pyotp.TOTP(clean_secret).now()
-            
+        if success:
             return jsonify({
                 'success': True,
-                'message': 'TOTP secret is valid',
-                'current_totp': totp,
-                'cleaned_secret': clean_secret
+                'message': 'Data source is working!',
+                'data_source': 'yfinance (Yahoo Finance)',
+                'features': [
+                    'No API keys required',
+                    'Supports NSE/BSE Indian stocks',
+                    'Historical data available',
+                    'Multiple timeframes supported'
+                ]
             })
-            
-        except Exception as e:
+        else:
             return jsonify({
                 'success': False,
-                'error': f'Invalid TOTP secret: {str(e)}',
-                'suggestion': 'TOTP secret should be Base32 format (A-Z, 2-7). Get it from: https://smartapi.angelbroking.com/enable-totp',
-                'cleaned_secret': clean_secret
-            }), 400
+                'error': 'Data source test failed'
+            }), 500
             
     except Exception as e:
         return jsonify({
             'success': False,
-            'error': f'Test failed: {str(e)}'
+            'error': f'Data source test failed: {str(e)}'
         }), 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
