@@ -65,32 +65,44 @@ class SmartAPIClient:
             
             response = self.session.post(login_url, headers=headers, json=payload)
             
+            logger.info(f"Login response status: {response.status_code}")
+            
             if response.status_code == 200:
-                data = response.json()
-                if data.get('status') and data.get('data'):
-                    self.access_token = data['data']['jwtToken']
-                    self.refresh_token = data['data']['refreshToken']
-                    self.feed_token = data['data']['feedToken']
-                    self.jwt_token = data['data']['jwtToken']
+                try:
+                    data = response.json()
+                    logger.info(f"Login response data: {data}")
                     
-                    # Update session headers
-                    self.session.headers.update({
-                        'Authorization': f'Bearer {self.jwt_token}',
-                        'X-UserType': 'USER',
-                        'X-SourceID': 'WEB',
-                        'X-ClientLocalIP': '192.168.1.1',
-                        'X-ClientPublicIP': '192.168.1.1',
-                        'X-MACAddress': '00:00:00:00:00:00',
-                        'X-PrivateKey': self.api_key
-                    })
-                    
-                    logger.info("Successfully authenticated with SmartAPI")
-                    return True
-                else:
-                    logger.error(f"Login failed: {data.get('message', 'Unknown error')}")
+                    if data.get('status') and data.get('data'):
+                        self.access_token = data['data']['jwtToken']
+                        self.refresh_token = data['data']['refreshToken']
+                        self.feed_token = data['data']['feedToken']
+                        self.jwt_token = data['data']['jwtToken']
+                        
+                        # Update session headers
+                        self.session.headers.update({
+                            'Authorization': f'Bearer {self.jwt_token}',
+                            'X-UserType': 'USER',
+                            'X-SourceID': 'WEB',
+                            'X-ClientLocalIP': '192.168.1.1',
+                            'X-ClientPublicIP': '192.168.1.1',
+                            'X-MACAddress': '00:00:00:00:00:00',
+                            'X-PrivateKey': self.api_key
+                        })
+                        
+                        logger.info("Successfully authenticated with SmartAPI")
+                        return True
+                    else:
+                        error_msg = data.get('message', 'Unknown error')
+                        logger.error(f"Login failed: {error_msg}")
+                        logger.error(f"Full response: {data}")
+                        return False
+                except Exception as json_error:
+                    logger.error(f"Error parsing login response: {str(json_error)}")
+                    logger.error(f"Response text: {response.text}")
                     return False
             else:
                 logger.error(f"Login request failed with status: {response.status_code}")
+                logger.error(f"Response text: {response.text}")
                 return False
                 
         except Exception as e:

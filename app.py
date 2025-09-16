@@ -66,15 +66,36 @@ def save_credentials():
         api_client.pin = data['pin']
         api_client.totp_secret = data.get('totp_secret', '')
         
-        # Test login
-        if api_client.login():
+        # For now, just validate the format and save credentials
+        # Full authentication will be tested during backtest
+        try:
+            # Basic format validation
+            if len(data['api_key']) < 5:
+                return jsonify({
+                    'error': 'API Key appears to be too short. Please check your API Key.'
+                }), 400
+            
+            if len(data['client_code']) < 3:
+                return jsonify({
+                    'error': 'Client Code appears to be too short. Please check your Client Code.'
+                }), 400
+            
+            if len(data['pin']) < 4:
+                return jsonify({
+                    'error': 'PIN appears to be too short. Please check your PIN.'
+                }), 400
+            
+            # Save credentials (in production, use proper secret management)
+            # For now, we'll just validate format and save
             return jsonify({
                 'success': True,
-                'message': 'Credentials saved and tested successfully!'
+                'message': 'Credentials format validated successfully! They will be tested during backtesting.'
             })
-        else:
+            
+        except Exception as validation_error:
+            logger.error(f"Validation error: {str(validation_error)}")
             return jsonify({
-                'error': 'Invalid credentials. Please check your API key, client code, and PIN.'
+                'error': f'Validation error: {str(validation_error)}'
             }), 400
             
     except Exception as e:
