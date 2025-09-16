@@ -10,38 +10,43 @@ from dotenv import load_dotenv
 import pyotp
 from logzero import logger
 
+# Import the official SmartAPI library
+from SmartApi import SmartConnect
+
 load_dotenv()
 
 class SmartAPIClient:
     """
-    Angel One SmartAPI client for fetching historical data using official library approach
+    Angel One SmartAPI client using the official SmartAPI Python library
     """
     
     def __init__(self):
-        self.base_url = "https://apiconnect.angelbroking.com"
-        self.session = requests.Session()
-        self.access_token = None
-        self.refresh_token = None
-        self.feed_token = None
-        self.jwt_token = None
-        
         # API credentials - these should be set as environment variables
         self.api_key = os.getenv('ANGEL_API_KEY')
         self.client_code = os.getenv('ANGEL_CLIENT_CODE')
         self.pin = os.getenv('ANGEL_PIN')
         self.totp_secret = os.getenv('ANGEL_TOTP_SECRET')
         
+        # Initialize the official SmartAPI client
+        self.smart_api = None
+        self.auth_token = None
+        self.refresh_token = None
+        self.feed_token = None
+        
         if not all([self.api_key, self.client_code, self.pin]):
             logger.warning("SmartAPI credentials not found in environment variables")
     
     def login(self) -> bool:
         """
-        Authenticate with SmartAPI using multiple approaches for better compatibility
+        Authenticate with SmartAPI using the official SmartAPI Python library
         """
         try:
             if not all([self.api_key, self.client_code, self.pin]):
                 logger.error("Missing required credentials for SmartAPI login")
                 return False
+            
+            # Initialize the official SmartAPI client
+            self.smart_api = SmartConnect(self.api_key)
             
             # Generate TOTP if secret is provided
             totp = ""
@@ -51,187 +56,36 @@ class SmartAPIClient:
                     logger.info(f"TOTP generated successfully: {totp}")
                 except Exception as e:
                     logger.error(f"TOTP generation failed: {str(e)}")
-                    # Continue without TOTP if generation fails
-                    totp = ""
+                    return False
             
-            # Try multiple authentication approaches
-            auth_methods = [
-                self._try_login_method_1,  # Original method
-                self._try_login_method_2,  # Alternative method
-                self._try_login_method_3   # Fallback method
-            ]
+            # Use the official library's generateSession method
+            logger.info(f"Attempting login for client: {self.client_code}")
+            data = self.smart_api.generateSession(self.client_code, self.pin, totp)
             
-            for i, method in enumerate(auth_methods, 1):
-                logger.info(f"Trying authentication method {i}")
-                if method(totp):
-                    logger.info(f"Authentication successful with method {i}")
-                    return True
-                logger.warning(f"Authentication method {i} failed, trying next...")
+            logger.info(f"Login response: {data}")
             
-            logger.error("All authentication methods failed")
-            return False
+            if data['status'] == False:
+                logger.error(f"Login failed: {data}")
+                return False
+            else:
+                # Store authentication tokens
+                self.auth_token = data['data']['jwtToken']
+                self.refresh_token = data['data']['refreshToken']
+                self.feed_token = self.smart_api.getfeedToken()
+                
+                logger.info("Successfully authenticated with SmartAPI using official library")
+                return True
                 
         except Exception as e:
             logger.error(f"Login error: {str(e)}")
             return False
     
-    def _try_login_method_1(self, totp: str) -> bool:
-        """Original SmartAPI authentication method"""
-        try:
-            login_url = f"{self.base_url}/rest/auth/angelbroking/user/v1/loginByPassword"
-            
-            headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-UserType': 'USER',
-                'X-SourceID': 'WEB',
-                'X-ClientLocalIP': '192.168.1.1',
-                'X-ClientPublicIP': '192.168.1.1',
-                'X-MACAddress': '00:00:00:00:00:00',
-                'X-PrivateKey': self.api_key
-            }
-            
-            payload = {
-                "clientcode": self.client_code,
-                "password": self.pin,
-                "totp": totp
-            }
-            
-            logger.info(f"Method 1 - Attempting login for client: {self.client_code}")
-            response = self.session.post(login_url, headers=headers, json=payload)
-            
-            logger.info(f"Method 1 - Response status: {response.status_code}")
-            logger.info(f"Method 1 - Response text: {response.text}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('status') and data.get('data'):
-                    self._store_auth_tokens(data['data'])
-                    return True
-                else:
-                    logger.error(f"Method 1 - Login failed: {data.get('message', 'Unknown error')}")
-                    return False
-            else:
-                logger.error(f"Method 1 - Request failed: {response.status_code}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Method 1 - Error: {str(e)}")
-            return False
-    
-    def _try_login_method_2(self, totp: str) -> bool:
-        """Alternative authentication method with different headers"""
-        try:
-            login_url = f"{self.base_url}/rest/auth/angelbroking/user/v1/loginByPassword"
-            
-            headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-UserType': 'USER',
-                'X-SourceID': 'WEB',
-                'X-ClientLocalIP': '127.0.0.1',
-                'X-ClientPublicIP': '127.0.0.1',
-                'X-MACAddress': '00:00:00:00:00:00',
-                'X-PrivateKey': self.api_key
-            }
-            
-            payload = {
-                "clientcode": self.client_code,
-                "password": self.pin,
-                "totp": totp
-            }
-            
-            logger.info(f"Method 2 - Attempting login for client: {self.client_code}")
-            response = self.session.post(login_url, headers=headers, json=payload)
-            
-            logger.info(f"Method 2 - Response status: {response.status_code}")
-            logger.info(f"Method 2 - Response text: {response.text}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('status') and data.get('data'):
-                    self._store_auth_tokens(data['data'])
-                    return True
-                else:
-                    logger.error(f"Method 2 - Login failed: {data.get('message', 'Unknown error')}")
-                    return False
-            else:
-                logger.error(f"Method 2 - Request failed: {response.status_code}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Method 2 - Error: {str(e)}")
-            return False
-    
-    def _try_login_method_3(self, totp: str) -> bool:
-        """Fallback method without TOTP"""
-        try:
-            login_url = f"{self.base_url}/rest/auth/angelbroking/user/v1/loginByPassword"
-            
-            headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-UserType': 'USER',
-                'X-SourceID': 'WEB',
-                'X-ClientLocalIP': '192.168.1.1',
-                'X-ClientPublicIP': '192.168.1.1',
-                'X-MACAddress': '00:00:00:00:00:00',
-                'X-PrivateKey': self.api_key
-            }
-            
-            payload = {
-                "clientcode": self.client_code,
-                "password": self.pin,
-                "totp": ""  # Try without TOTP
-            }
-            
-            logger.info(f"Method 3 - Attempting login without TOTP for client: {self.client_code}")
-            response = self.session.post(login_url, headers=headers, json=payload)
-            
-            logger.info(f"Method 3 - Response status: {response.status_code}")
-            logger.info(f"Method 3 - Response text: {response.text}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('status') and data.get('data'):
-                    self._store_auth_tokens(data['data'])
-                    return True
-                else:
-                    logger.error(f"Method 3 - Login failed: {data.get('message', 'Unknown error')}")
-                    return False
-            else:
-                logger.error(f"Method 3 - Request failed: {response.status_code}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Method 3 - Error: {str(e)}")
-            return False
-    
-    def _store_auth_tokens(self, data: dict):
-        """Store authentication tokens and update session headers"""
-        self.access_token = data['jwtToken']
-        self.refresh_token = data['refreshToken']
-        self.feed_token = data['feedToken']
-        self.jwt_token = data['jwtToken']
-        
-        # Update session headers for future requests
-        self.session.headers.update({
-            'Authorization': f'Bearer {self.jwt_token}',
-            'X-UserType': 'USER',
-            'X-SourceID': 'WEB',
-            'X-ClientLocalIP': '192.168.1.1',
-            'X-ClientPublicIP': '192.168.1.1',
-            'X-MACAddress': '00:00:00:00:00:00',
-            'X-PrivateKey': self.api_key
-        })
-        
-        logger.info("Authentication tokens stored successfully")
     
     
     def get_historical_data(self, symbol: str, from_date: str, to_date: str, 
                           interval: str = "ONE_MINUTE") -> Optional[pd.DataFrame]:
         """
-        Fetch historical OHLC data for a symbol using official SmartAPI approach
+        Fetch historical OHLC data for a symbol using the official SmartAPI library
         
         Args:
             symbol: Stock symbol (e.g., "RELIANCE")
@@ -243,7 +97,7 @@ class SmartAPIClient:
             DataFrame with OHLC data or None if failed
         """
         try:
-            if not self.access_token:
+            if not self.smart_api:
                 if not self.login():
                     logger.error("Failed to authenticate")
                     return None
@@ -254,45 +108,28 @@ class SmartAPIClient:
                 logger.error(f"Could not get token for symbol: {symbol}")
                 return None
             
-            # Historical data endpoint using official approach
-            url = f"{self.base_url}/rest/secure/angelbroking/historical/v1/getCandleData"
-            
-            # Format dates properly for the API
-            from_date_formatted = f"{from_date} 09:00"
-            to_date_formatted = f"{to_date} 15:30"
-            
-            payload = {
+            # Use the official library's getCandleData method
+            historic_param = {
                 "exchange": "NSE",
                 "symboltoken": symbol_token,
                 "interval": interval,
-                "fromdate": from_date_formatted,
-                "todate": to_date_formatted
+                "fromdate": f"{from_date} 09:00",
+                "todate": f"{to_date} 15:30"
             }
             
             logger.info(f"Fetching historical data for {symbol} with token {symbol_token}")
-            response = self.session.post(url, json=payload)
+            data = self.smart_api.getCandleData(historic_param)
             
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"Historical data response: {data}")
-                
-                if data.get('status') and data.get('data'):
-                    candles = data['data']
-                    if candles:
-                        df = pd.DataFrame(candles)
-                        # Convert timestamp to datetime
-                        df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
-                        df = df.sort_values('datetime')
-                        return df
-                    else:
-                        logger.warning(f"No data found for {symbol}")
-                        return None
-                else:
-                    logger.error(f"API error: {data.get('message', 'Unknown error')}")
-                    return None
+            logger.info(f"Historical data response: {data}")
+            
+            if data and isinstance(data, list) and len(data) > 0:
+                df = pd.DataFrame(data)
+                # Convert timestamp to datetime
+                df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
+                df = df.sort_values('datetime')
+                return df
             else:
-                logger.error(f"Historical data request failed: {response.status_code}")
-                logger.error(f"Response: {response.text}")
+                logger.warning(f"No data found for {symbol}")
                 return None
                 
         except Exception as e:
@@ -301,45 +138,33 @@ class SmartAPIClient:
     
     def get_symbol_token(self, symbol: str) -> Optional[str]:
         """
-        Get token for a symbol using official SmartAPI approach
+        Get token for a symbol using the official SmartAPI library
         """
         try:
-            if not self.access_token:
+            if not self.smart_api:
                 if not self.login():
                     return None
             
-            # Search symbol endpoint
-            url = f"{self.base_url}/rest/secure/angelbroking/market/v1/search"
-            
-            payload = {
-                "searchtext": symbol
-            }
-            
+            # Use the official library's search method
             logger.info(f"Searching for symbol: {symbol}")
-            response = self.session.post(url, json=payload)
+            data = self.smart_api.searchSymbol("NSE", symbol)
             
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"Symbol search response: {data}")
+            logger.info(f"Symbol search response: {data}")
+            
+            if data and isinstance(data, list) and len(data) > 0:
+                for item in data:
+                    # Look for exact match or symbol with -EQ suffix
+                    if (item.get('symbol') == symbol or 
+                        item.get('symbol') == f"{symbol}-EQ" or
+                        item.get('symbol') == f"{symbol}-BE"):
+                        token = item.get('token')
+                        logger.info(f"Found token {token} for symbol {symbol}")
+                        return token
                 
-                if data.get('status') and data.get('data'):
-                    for item in data['data']:
-                        # Look for exact match or symbol with -EQ suffix
-                        if (item.get('symbol') == symbol or 
-                            item.get('symbol') == f"{symbol}-EQ" or
-                            item.get('symbol') == f"{symbol}-BE"):
-                            token = item.get('token')
-                            logger.info(f"Found token {token} for symbol {symbol}")
-                            return token
-                    
-                    logger.warning(f"No token found for symbol: {symbol}")
-                    return None
-                else:
-                    logger.error(f"Symbol search failed: {data.get('message', 'Unknown error')}")
-                    return None
+                logger.warning(f"No token found for symbol: {symbol}")
+                return None
             else:
-                logger.error(f"Symbol search request failed: {response.status_code}")
-                logger.error(f"Response: {response.text}")
+                logger.error(f"Symbol search failed: No data returned")
                 return None
                 
         except Exception as e:
