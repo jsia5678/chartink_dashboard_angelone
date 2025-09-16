@@ -266,6 +266,43 @@ def credentials_status():
         'client_code': stored_credentials['client_code'] if stored_credentials else None
     })
 
+@app.route('/test_auth', methods=['POST'])
+def test_auth():
+    """Test authentication with detailed debugging"""
+    try:
+        data = request.get_json()
+        
+        # Create a test client
+        from smartapi_client import SmartAPIClient
+        api_client = SmartAPIClient()
+        
+        # Set credentials
+        api_client.api_key = data.get('api_key', '')
+        api_client.client_code = data.get('client_code', '')
+        api_client.pin = data.get('pin', '')
+        api_client.totp_secret = data.get('totp_secret', '')
+        
+        # Test login
+        result = api_client.login()
+        
+        return jsonify({
+            'success': result,
+            'message': 'Authentication test completed',
+            'debug_info': {
+                'api_key_length': len(data.get('api_key', '')),
+                'client_code': data.get('client_code', ''),
+                'has_totp': bool(data.get('totp_secret', '')),
+                'has_access_token': bool(api_client.access_token)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Test auth error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Test failed: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)

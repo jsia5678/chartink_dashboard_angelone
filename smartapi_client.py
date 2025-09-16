@@ -36,7 +36,7 @@ class SmartAPIClient:
     
     def login(self) -> bool:
         """
-        Authenticate with SmartAPI using the official library approach
+        Authenticate with SmartAPI using multiple approaches for better compatibility
         """
         try:
             if not all([self.api_key, self.client_code, self.pin]):
@@ -48,13 +48,36 @@ class SmartAPIClient:
             if self.totp_secret:
                 try:
                     totp = pyotp.TOTP(self.totp_secret).now()
-                    logger.info("TOTP generated successfully")
+                    logger.info(f"TOTP generated successfully: {totp}")
                 except Exception as e:
                     logger.error(f"TOTP generation failed: {str(e)}")
-                    return False
+                    # Continue without TOTP if generation fails
+                    totp = ""
             
-            # Use the official SmartAPI authentication approach
-            # This matches the official library's generateSession method
+            # Try multiple authentication approaches
+            auth_methods = [
+                self._try_login_method_1,  # Original method
+                self._try_login_method_2,  # Alternative method
+                self._try_login_method_3   # Fallback method
+            ]
+            
+            for i, method in enumerate(auth_methods, 1):
+                logger.info(f"Trying authentication method {i}")
+                if method(totp):
+                    logger.info(f"Authentication successful with method {i}")
+                    return True
+                logger.warning(f"Authentication method {i} failed, trying next...")
+            
+            logger.error("All authentication methods failed")
+            return False
+                
+        except Exception as e:
+            logger.error(f"Login error: {str(e)}")
+            return False
+    
+    def _try_login_method_1(self, totp: str) -> bool:
+        """Original SmartAPI authentication method"""
+        try:
             login_url = f"{self.base_url}/rest/auth/angelbroking/user/v1/loginByPassword"
             
             headers = {
@@ -74,52 +97,135 @@ class SmartAPIClient:
                 "totp": totp
             }
             
-            logger.info(f"Attempting login for client: {self.client_code}")
+            logger.info(f"Method 1 - Attempting login for client: {self.client_code}")
             response = self.session.post(login_url, headers=headers, json=payload)
             
-            logger.info(f"Login response status: {response.status_code}")
+            logger.info(f"Method 1 - Response status: {response.status_code}")
+            logger.info(f"Method 1 - Response text: {response.text}")
             
             if response.status_code == 200:
-                try:
-                    data = response.json()
-                    logger.info(f"Login response: {data}")
-                    
-                    if data.get('status') and data.get('data'):
-                        self.access_token = data['data']['jwtToken']
-                        self.refresh_token = data['data']['refreshToken']
-                        self.feed_token = data['data']['feedToken']
-                        self.jwt_token = data['data']['jwtToken']
-                        
-                        # Update session headers for future requests
-                        self.session.headers.update({
-                            'Authorization': f'Bearer {self.jwt_token}',
-                            'X-UserType': 'USER',
-                            'X-SourceID': 'WEB',
-                            'X-ClientLocalIP': '192.168.1.1',
-                            'X-ClientPublicIP': '192.168.1.1',
-                            'X-MACAddress': '00:00:00:00:00:00',
-                            'X-PrivateKey': self.api_key
-                        })
-                        
-                        logger.info("Successfully authenticated with SmartAPI")
-                        return True
-                    else:
-                        error_msg = data.get('message', 'Unknown error')
-                        logger.error(f"Login failed: {error_msg}")
-                        logger.error(f"Full response: {data}")
-                        return False
-                except Exception as json_error:
-                    logger.error(f"Error parsing login response: {str(json_error)}")
-                    logger.error(f"Response text: {response.text}")
+                data = response.json()
+                if data.get('status') and data.get('data'):
+                    self._store_auth_tokens(data['data'])
+                    return True
+                else:
+                    logger.error(f"Method 1 - Login failed: {data.get('message', 'Unknown error')}")
                     return False
             else:
-                logger.error(f"Login request failed with status: {response.status_code}")
-                logger.error(f"Response text: {response.text}")
+                logger.error(f"Method 1 - Request failed: {response.status_code}")
                 return False
                 
         except Exception as e:
-            logger.error(f"Login error: {str(e)}")
+            logger.error(f"Method 1 - Error: {str(e)}")
             return False
+    
+    def _try_login_method_2(self, totp: str) -> bool:
+        """Alternative authentication method with different headers"""
+        try:
+            login_url = f"{self.base_url}/rest/auth/angelbroking/user/v1/loginByPassword"
+            
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-UserType': 'USER',
+                'X-SourceID': 'WEB',
+                'X-ClientLocalIP': '127.0.0.1',
+                'X-ClientPublicIP': '127.0.0.1',
+                'X-MACAddress': '00:00:00:00:00:00',
+                'X-PrivateKey': self.api_key
+            }
+            
+            payload = {
+                "clientcode": self.client_code,
+                "password": self.pin,
+                "totp": totp
+            }
+            
+            logger.info(f"Method 2 - Attempting login for client: {self.client_code}")
+            response = self.session.post(login_url, headers=headers, json=payload)
+            
+            logger.info(f"Method 2 - Response status: {response.status_code}")
+            logger.info(f"Method 2 - Response text: {response.text}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') and data.get('data'):
+                    self._store_auth_tokens(data['data'])
+                    return True
+                else:
+                    logger.error(f"Method 2 - Login failed: {data.get('message', 'Unknown error')}")
+                    return False
+            else:
+                logger.error(f"Method 2 - Request failed: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Method 2 - Error: {str(e)}")
+            return False
+    
+    def _try_login_method_3(self, totp: str) -> bool:
+        """Fallback method without TOTP"""
+        try:
+            login_url = f"{self.base_url}/rest/auth/angelbroking/user/v1/loginByPassword"
+            
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-UserType': 'USER',
+                'X-SourceID': 'WEB',
+                'X-ClientLocalIP': '192.168.1.1',
+                'X-ClientPublicIP': '192.168.1.1',
+                'X-MACAddress': '00:00:00:00:00:00',
+                'X-PrivateKey': self.api_key
+            }
+            
+            payload = {
+                "clientcode": self.client_code,
+                "password": self.pin,
+                "totp": ""  # Try without TOTP
+            }
+            
+            logger.info(f"Method 3 - Attempting login without TOTP for client: {self.client_code}")
+            response = self.session.post(login_url, headers=headers, json=payload)
+            
+            logger.info(f"Method 3 - Response status: {response.status_code}")
+            logger.info(f"Method 3 - Response text: {response.text}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') and data.get('data'):
+                    self._store_auth_tokens(data['data'])
+                    return True
+                else:
+                    logger.error(f"Method 3 - Login failed: {data.get('message', 'Unknown error')}")
+                    return False
+            else:
+                logger.error(f"Method 3 - Request failed: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Method 3 - Error: {str(e)}")
+            return False
+    
+    def _store_auth_tokens(self, data: dict):
+        """Store authentication tokens and update session headers"""
+        self.access_token = data['jwtToken']
+        self.refresh_token = data['refreshToken']
+        self.feed_token = data['feedToken']
+        self.jwt_token = data['jwtToken']
+        
+        # Update session headers for future requests
+        self.session.headers.update({
+            'Authorization': f'Bearer {self.jwt_token}',
+            'X-UserType': 'USER',
+            'X-SourceID': 'WEB',
+            'X-ClientLocalIP': '192.168.1.1',
+            'X-ClientPublicIP': '192.168.1.1',
+            'X-MACAddress': '00:00:00:00:00:00',
+            'X-PrivateKey': self.api_key
+        })
+        
+        logger.info("Authentication tokens stored successfully")
     
     
     def get_historical_data(self, symbol: str, from_date: str, to_date: str, 
