@@ -7,17 +7,17 @@ import logging
 import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from smartapi_client import SmartAPIClient
+from data_client import DataClient
 
 logger = logging.getLogger(__name__)
 
 class BacktestEngine:
     """
-    Backtesting engine for Chartink signals using Angel One SmartAPI data
+    Backtesting engine for Chartink signals using Yahoo Finance data
     """
     
-    def __init__(self, api_client: SmartAPIClient):
-        self.api_client = api_client
+    def __init__(self, data_client: DataClient):
+        self.data_client = data_client
         self.results = []
     
     def run_backtest(self, trades_df: pd.DataFrame, stop_loss_pct: float = 5.0, 
@@ -49,7 +49,7 @@ class BacktestEngine:
                 symbol = f"NSE:{trade['stock_name']}-EQ"
                 
                 # Get entry data
-                entry_data = self.api_client.get_hourly_data_for_entry(
+                entry_data = self.data_client.get_hourly_data_for_entry(
                     symbol=symbol,
                     entry_datetime=trade['entry_datetime']
                 )
@@ -62,7 +62,7 @@ class BacktestEngine:
                 entry_price = entry_data['entry_price']
                 
                 # Get daily data for exit calculations
-                daily_data = self.api_client.get_daily_data_for_exit(
+                daily_data = self.data_client.get_daily_data_for_exit(
                     symbol=symbol,
                     entry_datetime=trade['entry_datetime'],
                     max_days=max_holding_days
