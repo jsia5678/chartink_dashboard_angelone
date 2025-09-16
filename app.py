@@ -1,0 +1,160 @@
+from flask import Flask, render_template, request, jsonify, send_file
+import pandas as pd
+import numpy as np
+import plotly.graph_objs as go
+import plotly.utils
+import json
+import os
+from datetime import datetime, timedelta
+import requests
+import time
+from io import BytesIO
+import base64
+from backtest_engine import BacktestEngine
+from smartapi_client import SmartAPIClient
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.secret_key = 'your-secret-key-here'
+
+# Global variables to store data
+uploaded_data = None
+backtest_results = None
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    global uploaded_data
+    
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not file.filename.endswith('.csv'):
+            return jsonify({'error': 'Please upload a CSV file'}), 400
+        
+        # Read CSV file
+        df = pd.read_csv(file)
+        
+        # Validate required columns
+        required_columns = ['stock_name', 'entry_date', 'entry_time']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            return jsonify({
+                'error': f'Missing required columns: {", ".join(missing_columns)}',
+                'available_columns': list(df.columns)
+            }), 400
+        
+        # Process the data
+        df['entry_date'] = pd.to_datetime(df['entry_date'])
+        df['entry_datetime'] = pd.to_datetime(df['entry_date'].astype(str) + ' ' + df['entry_time'].astype(str))
+        
+        uploaded_data = df
+        logger.info(f"Uploaded {len(df)} trades")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully uploaded {len(df)} trades',
+            'preview': df.head().to_dict('records')
+        })
+    
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+
+@app.route('/run_backtest', methods=['POST'])
+def run_backtest():
+    global uploaded_data, backtest_results
+    
+    try:
+        if uploaded_data is None:
+            return jsonify({'error': 'No data uploaded. Please upload a CSV file first.'}), 400
+        
+        # Get parameters from request
+        data = request.get_json()
+        stop_loss_pct = float(data.get('stop_loss_pct', 5))
+        target_profit_pct = float(data.get('target_profit_pct', 10))
+        max_holding_days = int(data.get('max_holding_days', 10))
+        
+        # Initialize SmartAPI client
+        api_client = SmartAPIClient()
+        
+        # Initialize backtest engine
+        engine = BacktestEngine(api_client)
+        
+        # Run backtest
+        logger.info("Starting backtest...")
+        results = engine.run_backtest(
+            trades_df=uploaded_data,
+            stop_loss_pct=stop_loss_pct,
+            target_profit_pct=target_profit_pct,
+            max_holding_days=max_holding_days
+        )
+        
+        backtest_results = results
+        
+        # Calculate performance metrics
+        metrics = engine.calculate_metrics(results)
+        
+        # Generate charts
+        equity_curve = engine.generate_equity_curve(results)
+        returns_distribution = engine.generate_returns_distribution(results)
+        
+        return jsonify({
+            'success': True,
+            'metrics': metrics,
+            'equity_curve': equity_curve,
+            'returns_distribution': returns_distribution,
+            'total_trades': len(results)
+        })
+    
+    except Exception as e:
+        logger.error(f"Backtest error: {str(e)}")
+        return jsonify({'error': f'Error running backtest: {str(e)}'}), 500
+
+@app.route('/export_results', methods=['GET'])
+def export_results():
+    global backtest_results
+    
+    try:
+        if backtest_results is None:
+            return jsonify({'error': 'No backtest results available'}), 400
+        
+        # Create Excel file with results
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            backtest_results.to_excel(writer, sheet_name='Backtest Results', index=False)
+        
+        output.seek(0)
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f'backtest_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    
+    except Exception as e:
+        logger.error(f"Export error: {str(e)}")
+        return jsonify({'error': f'Error exporting results: {str(e)}'}), 500
+
+@app.route('/health')
+def health_check():
+    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
