@@ -60,16 +60,17 @@ Visit `http://localhost:5000` to access the dashboard.
 ### Step 1: Prepare Your CSV File
 
 Your CSV file should contain the following columns:
-- `stock_name`: Stock symbol (e.g., "RELIANCE", "TCS")
-- `entry_date`: Entry date in YYYY-MM-DD format
-- `entry_time`: Entry time in HH:MM:SS format
+- `date`: Entry date and time in DD-MM-YYYY H:MM AM/PM format
+- `symbol`: Stock symbol (e.g., "YATHARTH", "KAMATHOTEL")
+- `marketcapname`: Market cap category (e.g., "Midcap", "Smallcap")
+- `sector`: Industry sector (e.g., "Pharmaceuticals", "Services")
 
 Example CSV:
 ```csv
-stock_name,entry_date,entry_time
-RELIANCE,2024-01-15,09:30:00
-TCS,2024-01-15,10:15:00
-INFY,2024-01-16,11:00:00
+date,symbol,marketcapname,sector
+06-08-2025 10:15 am,YATHARTH,Midcap,Pharmaceuticals
+06-08-2025 10:15 am,KAMATHOTEL,Smallcap,Services
+06-08-2025 11:15 am,YATHARTH,Midcap,Pharmaceuticals
 ```
 
 ### Step 2: Upload and Configure

@@ -48,19 +48,24 @@ def upload_file():
         # Read CSV file
         df = pd.read_csv(file)
         
-        # Validate required columns
-        required_columns = ['stock_name', 'entry_date', 'entry_time']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        
-        if missing_columns:
+        # Validate required columns - check for your CSV format
+        if 'date' in df.columns and 'symbol' in df.columns:
+            # Your CSV format: date, symbol, marketcapname, sector
+            df['entry_datetime'] = pd.to_datetime(df['date'], format='%d-%m-%Y %I:%M %p')
+            df['stock_name'] = df['symbol']
+        elif 'stock_name' in df.columns and 'entry_date' in df.columns and 'entry_time' in df.columns:
+            # Original format: stock_name, entry_date, entry_time
+            df['entry_date'] = pd.to_datetime(df['entry_date'])
+            df['entry_datetime'] = pd.to_datetime(df['entry_date'].astype(str) + ' ' + df['entry_time'].astype(str))
+        else:
             return jsonify({
-                'error': f'Missing required columns: {", ".join(missing_columns)}',
-                'available_columns': list(df.columns)
+                'error': 'CSV must have either: (date, symbol) OR (stock_name, entry_date, entry_time)',
+                'available_columns': list(df.columns),
+                'expected_formats': [
+                    'Format 1: date, symbol, marketcapname, sector',
+                    'Format 2: stock_name, entry_date, entry_time'
+                ]
             }), 400
-        
-        # Process the data
-        df['entry_date'] = pd.to_datetime(df['entry_date'])
-        df['entry_datetime'] = pd.to_datetime(df['entry_date'].astype(str) + ' ' + df['entry_time'].astype(str))
         
         uploaded_data = df
         logger.info(f"Uploaded {len(df)} trades")
