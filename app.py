@@ -61,11 +61,13 @@ def save_credentials():
         from smartapi_client import SmartAPIClient
         api_client = SmartAPIClient()
         
-        # Temporarily set credentials for testing
-        api_client.api_key = data['api_key']
-        api_client.client_code = data['client_code']
-        api_client.pin = data['pin']
-        api_client.totp_secret = data.get('totp_secret', '')
+        # Set credentials using the new method
+        api_client.set_credentials(
+            api_key=data['api_key'],
+            client_code=data['client_code'],
+            pin=data['pin'],
+            totp_secret=data.get('totp_secret', '')
+        )
         
         # Test the credentials with actual SmartAPI authentication
         try:
@@ -191,10 +193,12 @@ def run_backtest():
         
         # Initialize SmartAPI client with stored credentials
         api_client = SmartAPIClient()
-        api_client.api_key = stored_credentials['api_key']
-        api_client.client_code = stored_credentials['client_code']
-        api_client.pin = stored_credentials['pin']
-        api_client.totp_secret = stored_credentials.get('totp_secret', '')
+        api_client.set_credentials(
+            api_key=stored_credentials['api_key'],
+            client_code=stored_credentials['client_code'],
+            pin=stored_credentials['pin'],
+            totp_secret=stored_credentials.get('totp_secret', '')
+        )
         
         # Initialize backtest engine
         engine = BacktestEngine(api_client)
@@ -276,11 +280,13 @@ def test_auth():
         from smartapi_client import SmartAPIClient
         api_client = SmartAPIClient()
         
-        # Set credentials
-        api_client.api_key = data.get('api_key', '')
-        api_client.client_code = data.get('client_code', '')
-        api_client.pin = data.get('pin', '')
-        api_client.totp_secret = data.get('totp_secret', '')
+        # Set credentials using the new method
+        api_client.set_credentials(
+            api_key=data.get('api_key', ''),
+            client_code=data.get('client_code', ''),
+            pin=data.get('pin', ''),
+            totp_secret=data.get('totp_secret', '')
+        )
         
         # Test login
         result = api_client.login()
@@ -292,7 +298,7 @@ def test_auth():
                 'api_key_length': len(data.get('api_key', '')),
                 'client_code': data.get('client_code', ''),
                 'has_totp': bool(data.get('totp_secret', '')),
-                'has_access_token': bool(api_client.access_token)
+                'has_auth_token': bool(api_client.auth_token)
             }
         })
         

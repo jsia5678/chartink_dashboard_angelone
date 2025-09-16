@@ -21,20 +21,25 @@ class SmartAPIClient:
     """
     
     def __init__(self):
-        # API credentials - these should be set as environment variables
-        self.api_key = os.getenv('ANGEL_API_KEY')
-        self.client_code = os.getenv('ANGEL_CLIENT_CODE')
-        self.pin = os.getenv('ANGEL_PIN')
-        self.totp_secret = os.getenv('ANGEL_TOTP_SECRET')
+        # API credentials - these will be set dynamically
+        self.api_key = None
+        self.client_code = None
+        self.pin = None
+        self.totp_secret = None
         
         # Initialize the official SmartAPI client
         self.smart_api = None
         self.auth_token = None
         self.refresh_token = None
         self.feed_token = None
-        
-        if not all([self.api_key, self.client_code, self.pin]):
-            logger.warning("SmartAPI credentials not found in environment variables")
+    
+    def set_credentials(self, api_key: str, client_code: str, pin: str, totp_secret: str = ""):
+        """Set API credentials dynamically"""
+        self.api_key = api_key
+        self.client_code = client_code
+        self.pin = pin
+        self.totp_secret = totp_secret
+        logger.info(f"Credentials set for client: {client_code}")
     
     def login(self) -> bool:
         """
