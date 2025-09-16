@@ -107,8 +107,8 @@
             <div class="step-item">
                 <div class="step-number">3</div>
                 <div class="step-content">
-                    <h6>Save & Validate</h6>
-                    <p class="mb-0">We'll validate your credentials format and save them for backtesting.</p>
+                    <h6>Verify & Save</h6>
+                    <p class="mb-0">We'll verify your credentials with Angel One API and save them for backtesting.</p>
                 </div>
             </div>
         </div>
@@ -147,7 +147,7 @@
                 <div class="row mt-4">
                     <div class="col-12 text-center">
                         <button type="submit" class="btn btn-success btn-custom me-3">
-                            <i class="fas fa-save"></i> Save Credentials
+                            <i class="fas fa-check-circle"></i> Verify & Save Credentials
                         </button>
                         <a href="/" class="btn btn-secondary btn-custom">
                             <i class="fas fa-arrow-left"></i> Back to Dashboard
@@ -191,6 +191,13 @@
         document.getElementById('credentialsForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            const submitBtn = document.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            // Show loading state
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            submitBtn.disabled = true;
+            
             const formData = {
                 api_key: document.getElementById('apiKey').value,
                 client_code: document.getElementById('clientCode').value,
@@ -218,7 +225,11 @@
                     showAlert(result.error, 'danger');
                 }
             } catch (error) {
-                showAlert('Error saving credentials: ' + error.message, 'danger');
+                showAlert('Error verifying credentials: ' + error.message, 'danger');
+            } finally {
+                // Reset button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
             }
         });
         

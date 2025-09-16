@@ -144,11 +144,9 @@ class BacktestDashboard {
 
     async checkCredentials() {
         try {
-            const response = await fetch('/health');
+            const response = await fetch('/credentials_status');
             const result = await response.json();
-            // For now, we'll assume credentials are set if the app is running
-            // In a real implementation, you'd check if credentials are configured
-            return true;
+            return result.has_credentials;
         } catch (error) {
             return false;
         }

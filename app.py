@@ -25,6 +25,7 @@ app.secret_key = 'your-secret-key-here'
 # Global variables to store data
 uploaded_data = None
 backtest_results = None
+stored_credentials = None
 
 @app.route('/')
 def index():
@@ -66,10 +67,9 @@ def save_credentials():
         api_client.pin = data['pin']
         api_client.totp_secret = data.get('totp_secret', '')
         
-        # For now, just validate the format and save credentials
-        # Full authentication will be tested during backtest
+        # Test the credentials with actual SmartAPI authentication
         try:
-            # Basic format validation
+            # Basic format validation first
             if len(data['api_key']) < 5:
                 return jsonify({
                     'error': 'API Key appears to be too short. Please check your API Key.'
@@ -85,17 +85,35 @@ def save_credentials():
                     'error': 'PIN appears to be too short. Please check your PIN.'
                 }), 400
             
-            # Save credentials (in production, use proper secret management)
-            # For now, we'll just validate format and save
-            return jsonify({
-                'success': True,
-                'message': 'Credentials format validated successfully! They will be tested during backtesting.'
-            })
+            # Test actual authentication
+            logger.info("Testing SmartAPI authentication...")
+            login_result = api_client.login()
             
-        except Exception as validation_error:
-            logger.error(f"Validation error: {str(validation_error)}")
+            if login_result:
+                # Store credentials globally for this session
+                global stored_credentials
+                stored_credentials = {
+                    'api_key': data['api_key'],
+                    'client_code': data['client_code'],
+                    'pin': data['pin'],
+                    'totp_secret': data.get('totp_secret', '')
+                }
+                
+                logger.info("Credentials validated and stored successfully")
+                return jsonify({
+                    'success': True,
+                    'message': 'Credentials verified and saved successfully! You can now run backtests.'
+                })
+            else:
+                logger.error("SmartAPI authentication failed")
+                return jsonify({
+                    'error': 'Authentication failed. Please check your API key, client code, PIN, and ensure your account has API access enabled.'
+                }), 400
+            
+        except Exception as auth_error:
+            logger.error(f"Authentication error: {str(auth_error)}")
             return jsonify({
-                'error': f'Validation error: {str(validation_error)}'
+                'error': f'Authentication error: {str(auth_error)}. Please check your credentials and try again.'
             }), 400
             
     except Exception as e:
@@ -166,8 +184,17 @@ def run_backtest():
         target_profit_pct = float(data.get('target_profit_pct', 10))
         max_holding_days = int(data.get('max_holding_days', 10))
         
-        # Initialize SmartAPI client
+        # Check if credentials are available
+        global stored_credentials
+        if not stored_credentials:
+            return jsonify({'error': 'No credentials found. Please setup your Angel One API credentials first.'}), 400
+        
+        # Initialize SmartAPI client with stored credentials
         api_client = SmartAPIClient()
+        api_client.api_key = stored_credentials['api_key']
+        api_client.client_code = stored_credentials['client_code']
+        api_client.pin = stored_credentials['pin']
+        api_client.totp_secret = stored_credentials.get('totp_secret', '')
         
         # Initialize backtest engine
         engine = BacktestEngine(api_client)
@@ -230,6 +257,14 @@ def export_results():
 @app.route('/health')
 def health_check():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+@app.route('/credentials_status')
+def credentials_status():
+    global stored_credentials
+    return jsonify({
+        'has_credentials': stored_credentials is not None,
+        'client_code': stored_credentials['client_code'] if stored_credentials else None
+    })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
