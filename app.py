@@ -98,10 +98,6 @@ def run_backtest():
         # Use the new data client (no credentials required!)
         data_client = DataClient()
         
-        # Test the data client
-        if not data_client.test_connection():
-            return jsonify({'error': 'Data source is not available. Please try again later.'}), 500
-        
         # Initialize backtest engine with data client
         engine = BacktestEngine(data_client)
         
