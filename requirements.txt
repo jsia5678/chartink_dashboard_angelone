@@ -8,3 +8,6 @@ openpyxl==3.1.2
 gunicorn==21.2.0
 cryptography==41.0.7
 pyotp==2.9.0
+logzero==1.7.0
+websocket-client==1.6.4
+pycryptodome==3.19.0

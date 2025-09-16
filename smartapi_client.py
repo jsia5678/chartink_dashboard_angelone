@@ -7,14 +7,14 @@ import pandas as pd
 from typing import Dict, List, Optional, Tuple
 import os
 from dotenv import load_dotenv
+import pyotp
+from logzero import logger
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
-
 class SmartAPIClient:
     """
-    Angel One SmartAPI client for fetching historical data
+    Angel One SmartAPI client for fetching historical data using official library approach
     """
     
     def __init__(self):
@@ -36,14 +36,25 @@ class SmartAPIClient:
     
     def login(self) -> bool:
         """
-        Authenticate with SmartAPI using MPIN
+        Authenticate with SmartAPI using the official library approach
         """
         try:
             if not all([self.api_key, self.client_code, self.pin]):
                 logger.error("Missing required credentials for SmartAPI login")
                 return False
             
-            # Login endpoint
+            # Generate TOTP if secret is provided
+            totp = ""
+            if self.totp_secret:
+                try:
+                    totp = pyotp.TOTP(self.totp_secret).now()
+                    logger.info("TOTP generated successfully")
+                except Exception as e:
+                    logger.error(f"TOTP generation failed: {str(e)}")
+                    return False
+            
+            # Use the official SmartAPI authentication approach
+            # This matches the official library's generateSession method
             login_url = f"{self.base_url}/rest/auth/angelbroking/user/v1/loginByPassword"
             
             headers = {
@@ -60,9 +71,10 @@ class SmartAPIClient:
             payload = {
                 "clientcode": self.client_code,
                 "password": self.pin,
-                "totp": self._generate_totp() if self.totp_secret else ""
+                "totp": totp
             }
             
+            logger.info(f"Attempting login for client: {self.client_code}")
             response = self.session.post(login_url, headers=headers, json=payload)
             
             logger.info(f"Login response status: {response.status_code}")
@@ -70,7 +82,7 @@ class SmartAPIClient:
             if response.status_code == 200:
                 try:
                     data = response.json()
-                    logger.info(f"Login response data: {data}")
+                    logger.info(f"Login response: {data}")
                     
                     if data.get('status') and data.get('data'):
                         self.access_token = data['data']['jwtToken']
@@ -78,7 +90,7 @@ class SmartAPIClient:
                         self.feed_token = data['data']['feedToken']
                         self.jwt_token = data['data']['jwtToken']
                         
-                        # Update session headers
+                        # Update session headers for future requests
                         self.session.headers.update({
                             'Authorization': f'Bearer {self.jwt_token}',
                             'X-UserType': 'USER',
@@ -109,25 +121,14 @@ class SmartAPIClient:
             logger.error(f"Login error: {str(e)}")
             return False
     
-    def _generate_totp(self) -> str:
-        """
-        Generate TOTP for 2FA authentication
-        """
-        try:
-            import pyotp
-            totp = pyotp.TOTP(self.totp_secret)
-            return totp.now()
-        except Exception as e:
-            logger.error(f"TOTP generation error: {str(e)}")
-            return ""
     
     def get_historical_data(self, symbol: str, from_date: str, to_date: str, 
                           interval: str = "ONE_MINUTE") -> Optional[pd.DataFrame]:
         """
-        Fetch historical OHLC data for a symbol
+        Fetch historical OHLC data for a symbol using official SmartAPI approach
         
         Args:
-            symbol: Stock symbol (e.g., "NSE:RELIANCE-EQ")
+            symbol: Stock symbol (e.g., "RELIANCE")
             interval: Time interval (ONE_MINUTE, FIVE_MINUTE, FIFTEEN_MINUTE, ONE_HOUR, ONE_DAY)
             from_date: Start date in YYYY-MM-DD format
             to_date: End date in YYYY-MM-DD format
@@ -141,28 +142,40 @@ class SmartAPIClient:
                     logger.error("Failed to authenticate")
                     return None
             
-            # Historical data endpoint
+            # Get symbol token first
+            symbol_token = self.get_symbol_token(symbol)
+            if not symbol_token:
+                logger.error(f"Could not get token for symbol: {symbol}")
+                return None
+            
+            # Historical data endpoint using official approach
             url = f"{self.base_url}/rest/secure/angelbroking/historical/v1/getCandleData"
             
+            # Format dates properly for the API
+            from_date_formatted = f"{from_date} 09:00"
+            to_date_formatted = f"{to_date} 15:30"
+            
             payload = {
-                "mode": "FULL",
-                "exchangeTokens": {
-                    "NSE": [symbol.split(':')[1] if ':' in symbol else symbol]
-                },
+                "exchange": "NSE",
+                "symboltoken": symbol_token,
                 "interval": interval,
-                "fromDate": from_date,
-                "toDate": to_date
+                "fromdate": from_date_formatted,
+                "todate": to_date_formatted
             }
             
+            logger.info(f"Fetching historical data for {symbol} with token {symbol_token}")
             response = self.session.post(url, json=payload)
             
             if response.status_code == 200:
                 data = response.json()
+                logger.info(f"Historical data response: {data}")
+                
                 if data.get('status') and data.get('data'):
-                    candles = data['data']['fetched']
+                    candles = data['data']
                     if candles:
                         df = pd.DataFrame(candles)
-                        df['datetime'] = pd.to_datetime(df['datetime'])
+                        # Convert timestamp to datetime
+                        df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
                         df = df.sort_values('datetime')
                         return df
                     else:
@@ -173,6 +186,7 @@ class SmartAPIClient:
                     return None
             else:
                 logger.error(f"Historical data request failed: {response.status_code}")
+                logger.error(f"Response: {response.text}")
                 return None
                 
         except Exception as e:
@@ -181,7 +195,7 @@ class SmartAPIClient:
     
     def get_symbol_token(self, symbol: str) -> Optional[str]:
         """
-        Get token for a symbol (required for historical data)
+        Get token for a symbol using official SmartAPI approach
         """
         try:
             if not self.access_token:
@@ -195,17 +209,31 @@ class SmartAPIClient:
                 "searchtext": symbol
             }
             
+            logger.info(f"Searching for symbol: {symbol}")
             response = self.session.post(url, json=payload)
             
             if response.status_code == 200:
                 data = response.json()
+                logger.info(f"Symbol search response: {data}")
+                
                 if data.get('status') and data.get('data'):
                     for item in data['data']:
-                        if item.get('symbol') == symbol:
-                            return item.get('token')
-                return None
+                        # Look for exact match or symbol with -EQ suffix
+                        if (item.get('symbol') == symbol or 
+                            item.get('symbol') == f"{symbol}-EQ" or
+                            item.get('symbol') == f"{symbol}-BE"):
+                            token = item.get('token')
+                            logger.info(f"Found token {token} for symbol {symbol}")
+                            return token
+                    
+                    logger.warning(f"No token found for symbol: {symbol}")
+                    return None
+                else:
+                    logger.error(f"Symbol search failed: {data.get('message', 'Unknown error')}")
+                    return None
             else:
-                logger.error(f"Symbol search failed: {response.status_code}")
+                logger.error(f"Symbol search request failed: {response.status_code}")
+                logger.error(f"Response: {response.text}")
                 return None
                 
         except Exception as e:
