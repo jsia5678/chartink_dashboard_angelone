@@ -56,8 +56,7 @@ class DataClient:
                         end=to_date,
                         interval=interval,
                         auto_adjust=True,
-                        prepost=True,
-                        threads=True
+                        prepost=True
                     )
                     
                     if not df.empty:

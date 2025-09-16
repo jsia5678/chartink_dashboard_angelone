@@ -45,8 +45,8 @@ class BacktestEngine:
             try:
                 logger.info(f"Processing trade {idx + 1}/{len(trades_df)}: {trade['stock_name']}")
                 
-                # Format symbol for SmartAPI (assuming NSE stocks)
-                symbol = f"NSE:{trade['stock_name']}-EQ"
+                # Use stock name directly for yfinance
+                symbol = trade['stock_name']
                 
                 # Get entry data
                 entry_data = self.data_client.get_hourly_data_for_entry(
