@@ -72,8 +72,20 @@ class SmartAPIClient:
             totp = ""
             if self.totp_secret:
                 try:
-                    totp = pyotp.TOTP(self.totp_secret).now()
-                    logger.info(f"TOTP generated successfully: {totp}")
+                    # Clean and validate TOTP secret
+                    clean_secret = self.totp_secret.strip().upper().replace(' ', '')
+                    
+                    # Check if it's valid Base32
+                    import base64
+                    try:
+                        base64.b32decode(clean_secret)
+                        totp = pyotp.TOTP(clean_secret).now()
+                        logger.info(f"TOTP generated successfully: {totp}")
+                    except Exception as base32_error:
+                        logger.error(f"Invalid Base32 TOTP secret: {str(base32_error)}")
+                        logger.error(f"TOTP secret should be Base32 format (A-Z, 2-7). Got: {clean_secret}")
+                        return False
+                        
                 except Exception as e:
                     logger.error(f"TOTP generation failed: {str(e)}")
                     return False
