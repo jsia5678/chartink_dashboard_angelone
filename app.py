@@ -309,6 +309,28 @@ def test_auth():
             'error': f'Test failed: {str(e)}'
         }), 500
 
+@app.route('/test_smartapi')
+def test_smartapi():
+    """Test if SmartAPI library is available"""
+    try:
+        from SmartApi import SmartConnect
+        return jsonify({
+            'success': True,
+            'message': 'SmartAPI library is available',
+            'version': 'SmartConnect imported successfully'
+        })
+    except ImportError as e:
+        return jsonify({
+            'success': False,
+            'error': f'SmartAPI library not available: {str(e)}',
+            'suggestion': 'Please install smartapi-python: pip install smartapi-python'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)

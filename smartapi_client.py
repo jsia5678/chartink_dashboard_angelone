@@ -11,7 +11,18 @@ import pyotp
 from logzero import logger
 
 # Import the official SmartAPI library
-from SmartApi import SmartConnect
+try:
+    from SmartApi import SmartConnect
+    logger.info("SmartAPI library imported successfully")
+except ImportError as e:
+    logger.error(f"Failed to import SmartAPI library: {e}")
+    # Fallback import
+    try:
+        from smartapi import SmartConnect
+        logger.info("SmartAPI library imported with fallback method")
+    except ImportError as e2:
+        logger.error(f"Fallback import also failed: {e2}")
+        SmartConnect = None
 
 load_dotenv()
 
@@ -46,6 +57,10 @@ class SmartAPIClient:
         Authenticate with SmartAPI using the official SmartAPI Python library
         """
         try:
+            if SmartConnect is None:
+                logger.error("SmartAPI library not available. Please install smartapi-python")
+                return False
+                
             if not all([self.api_key, self.client_code, self.pin]):
                 logger.error("Missing required credentials for SmartAPI login")
                 return False
@@ -69,8 +84,9 @@ class SmartAPIClient:
             
             logger.info(f"Login response: {data}")
             
-            if data['status'] == False:
-                logger.error(f"Login failed: {data}")
+            if not data or data.get('status') == False:
+                error_msg = data.get('message', 'Unknown error') if data else 'No response from server'
+                logger.error(f"Login failed: {error_msg}")
                 return False
             else:
                 # Store authentication tokens
