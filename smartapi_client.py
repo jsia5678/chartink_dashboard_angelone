@@ -75,20 +75,28 @@ class SmartAPIClient:
                     # Clean and validate TOTP secret
                     clean_secret = self.totp_secret.strip().upper().replace(' ', '')
                     
-                    # Check if it's valid Base32
-                    import base64
-                    try:
-                        base64.b32decode(clean_secret)
-                        totp = pyotp.TOTP(clean_secret).now()
-                        logger.info(f"TOTP generated successfully: {totp}")
-                    except Exception as base32_error:
-                        logger.error(f"Invalid Base32 TOTP secret: {str(base32_error)}")
-                        logger.error(f"TOTP secret should be Base32 format (A-Z, 2-7). Got: {clean_secret}")
-                        return False
+                    # Check length first
+                    if len(clean_secret) < 32:
+                        logger.warning(f"TOTP secret is too short ({len(clean_secret)} chars). Should be 32 characters.")
+                        logger.warning("Trying authentication without TOTP...")
+                        totp = ""
+                    else:
+                        # Check if it's valid Base32
+                        import base64
+                        try:
+                            base64.b32decode(clean_secret)
+                            totp = pyotp.TOTP(clean_secret).now()
+                            logger.info(f"TOTP generated successfully: {totp}")
+                        except Exception as base32_error:
+                            logger.error(f"Invalid Base32 TOTP secret: {str(base32_error)}")
+                            logger.error(f"TOTP secret should be Base32 format (A-Z, 2-7). Got: {clean_secret}")
+                            logger.warning("Trying authentication without TOTP...")
+                            totp = ""
                         
                 except Exception as e:
                     logger.error(f"TOTP generation failed: {str(e)}")
-                    return False
+                    logger.warning("Trying authentication without TOTP...")
+                    totp = ""
             
             # Use the official library's generateSession method
             logger.info(f"Attempting login for client: {self.client_code}")
