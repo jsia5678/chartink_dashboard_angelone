@@ -331,6 +331,52 @@ def test_smartapi():
             'error': f'Unexpected error: {str(e)}'
         }), 500
 
+@app.route('/test_totp', methods=['POST'])
+def test_totp():
+    """Test TOTP secret format"""
+    try:
+        data = request.get_json()
+        totp_secret = data.get('totp_secret', '')
+        
+        if not totp_secret:
+            return jsonify({
+                'success': False,
+                'error': 'TOTP secret is required'
+            }), 400
+        
+        # Clean the secret
+        clean_secret = totp_secret.strip().upper().replace(' ', '')
+        
+        # Test Base32 validation
+        import base64
+        try:
+            base64.b32decode(clean_secret)
+            
+            # Test TOTP generation
+            import pyotp
+            totp = pyotp.TOTP(clean_secret).now()
+            
+            return jsonify({
+                'success': True,
+                'message': 'TOTP secret is valid',
+                'current_totp': totp,
+                'cleaned_secret': clean_secret
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid TOTP secret: {str(e)}',
+                'suggestion': 'TOTP secret should be Base32 format (A-Z, 2-7). Get it from: https://smartapi.angelbroking.com/enable-totp',
+                'cleaned_secret': clean_secret
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Test failed: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
