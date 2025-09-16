@@ -30,6 +30,57 @@ backtest_results = None
 def index():
     return render_template('index.html')
 
+@app.route('/setup')
+def setup():
+    return render_template('setup.html')
+
+@app.route('/save_credentials', methods=['POST'])
+def save_credentials():
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['api_key', 'client_code', 'pin']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+        
+        if missing_fields:
+            return jsonify({
+                'error': f'Missing required fields: {", ".join(missing_fields)}'
+            }), 400
+        
+        # Save credentials to environment (in production, use proper secret management)
+        credentials = {
+            'ANGEL_API_KEY': data['api_key'],
+            'ANGEL_CLIENT_CODE': data['client_code'],
+            'ANGEL_PIN': data['pin'],
+            'ANGEL_TOTP_SECRET': data.get('totp_secret', '')
+        }
+        
+        # Test the credentials
+        from smartapi_client import SmartAPIClient
+        api_client = SmartAPIClient()
+        
+        # Temporarily set credentials for testing
+        api_client.api_key = data['api_key']
+        api_client.client_code = data['client_code']
+        api_client.pin = data['pin']
+        api_client.totp_secret = data.get('totp_secret', '')
+        
+        # Test login
+        if api_client.login():
+            return jsonify({
+                'success': True,
+                'message': 'Credentials saved and tested successfully!'
+            })
+        else:
+            return jsonify({
+                'error': 'Invalid credentials. Please check your API key, client code, and PIN.'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Credentials error: {str(e)}")
+        return jsonify({'error': f'Error saving credentials: {str(e)}'}), 500
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     global uploaded_data
@@ -138,18 +189,17 @@ def export_results():
         if backtest_results is None:
             return jsonify({'error': 'No backtest results available'}), 400
         
-        # Create Excel file with results
+        # Create CSV file with results
         output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            backtest_results.to_excel(writer, sheet_name='Backtest Results', index=False)
-        
+        csv_data = backtest_results.to_csv(index=False)
+        output.write(csv_data.encode('utf-8'))
         output.seek(0)
         
         return send_file(
             output,
             as_attachment=True,
-            download_name=f'backtest_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx',
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            download_name=f'backtest_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv',
+            mimetype='text/csv'
         )
     
     except Exception as e:

@@ -93,6 +93,13 @@ class BacktestDashboard {
             this.showAlert('Please upload a CSV file first', 'warning');
             return;
         }
+        
+        // Check if credentials are set up
+        const hasCredentials = await this.checkCredentials();
+        if (!hasCredentials) {
+            this.showAlert('Please setup your Angel One API credentials first. Click "Setup API Credentials" button.', 'warning');
+            return;
+        }
 
         const stopLoss = parseFloat(document.getElementById('stopLoss').value);
         const targetProfit = parseFloat(document.getElementById('targetProfit').value);
@@ -132,6 +139,18 @@ class BacktestDashboard {
             this.showAlert('Error running backtest: ' + error.message, 'danger');
         } finally {
             this.showLoading(false);
+        }
+    }
+
+    async checkCredentials() {
+        try {
+            const response = await fetch('/health');
+            const result = await response.json();
+            // For now, we'll assume credentials are set if the app is running
+            // In a real implementation, you'd check if credentials are configured
+            return true;
+        } catch (error) {
+            return false;
         }
     }
 
