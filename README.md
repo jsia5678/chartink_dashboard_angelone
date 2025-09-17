@@ -1,22 +1,29 @@
 # Chartink Backtesting Dashboard
 
-A comprehensive web-based backtesting dashboard for Chartink scanner signals using Yahoo Finance historical data.
+A comprehensive web-based backtesting dashboard for Chartink scanner signals using multiple data sources for maximum reliability and coverage.
 
 ## Features
 
 - **CSV Upload**: Upload Chartink scanner signals directly via drag-and-drop interface
-- **Yahoo Finance Integration**: Fetch real-time historical OHLC data from Yahoo Finance (no API keys required!)
+- **Multi-Source Data**: Uses NSE unofficial API, Alpha Vantage, Yahoo Finance, and mock data fallbacks
 - **Advanced Backtesting**: Support for Stop Loss, Target Profit, and time-based exits
 - **Performance Metrics**: Win rate, drawdown, risk-reward ratio, and more
 - **Interactive Charts**: Equity curve and returns distribution visualization
 - **Export Results**: Download backtest results to CSV format
+- **Smart Fallbacks**: Automatically switches between data sources for maximum coverage
 - **Railway Ready**: Easy deployment on Railway.com with no server management
 
 ## Quick Start
 
-### 1. No API Credentials Required!
+### 1. Data Sources (No API Credentials Required!)
 
-This dashboard uses Yahoo Finance (yfinance) for historical data, which is completely free and doesn't require any API keys or authentication.
+This dashboard works out of the box with multiple data sources:
+- **NSE Unofficial API**: Free historical data for Indian stocks
+- **Yahoo Finance**: Free historical data for global stocks  
+- **Alpha Vantage**: Optional free tier (25 requests/day)
+- **Mock Data**: Realistic test data for missing stocks
+
+**Optional**: Add Alpha Vantage API key for additional coverage (get free key from [alphavantage.co](https://www.alphavantage.co/support/#api-key))
 
 ### 2. Upload Your Chartink CSV
 

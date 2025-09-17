@@ -11,7 +11,7 @@ import time
 from io import BytesIO
 import base64
 from backtest_engine import BacktestEngine
-from data_client import DataClient
+from enhanced_data_client import EnhancedDataClient
 import logging
 
 # Configure logging
@@ -96,7 +96,7 @@ def run_backtest():
         max_holding_days = int(data.get('max_holding_days', 10))
         
         # Use the new data client (no credentials required!)
-        data_client = DataClient()
+        data_client = EnhancedDataClient()
         
         # Initialize backtest engine with data client
         engine = BacktestEngine(data_client)
@@ -173,9 +173,9 @@ def credentials_status():
 @app.route('/test_data_source')
 def test_data_source():
     """Test if data source is working"""
-    try:
-        data_client = DataClient()
-        success = data_client.test_connection()
+           try:
+               data_client = EnhancedDataClient()
+               success = data_client.test_connection()
         
         if success:
             return jsonify({

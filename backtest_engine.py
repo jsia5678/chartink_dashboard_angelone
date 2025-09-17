@@ -7,7 +7,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from data_client import DataClient
+from enhanced_data_client import EnhancedDataClient
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class BacktestEngine:
     Backtesting engine for Chartink signals using Yahoo Finance data
     """
     
-    def __init__(self, data_client: DataClient):
+    def __init__(self, data_client: EnhancedDataClient):
         self.data_client = data_client
         self.results = []
     
