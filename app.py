@@ -91,9 +91,7 @@ def run_backtest():
         
         # Get parameters from request
         data = request.get_json()
-        stop_loss_pct = float(data.get('stop_loss_pct', 5))
-        target_profit_pct = float(data.get('target_profit_pct', 10))
-        max_holding_days = int(data.get('max_holding_days', 10))
+        holding_days = int(data.get('holding_days', 10))
         
         # Use the new data client (no credentials required!)
         data_client = EnhancedDataClient()
@@ -102,28 +100,20 @@ def run_backtest():
         engine = BacktestEngine(data_client)
         
         # Run backtest
-        logger.info("Starting backtest...")
+        logger.info("Starting simple backtest...")
         results = engine.run_backtest(
             trades_df=uploaded_data,
-            stop_loss_pct=stop_loss_pct,
-            target_profit_pct=target_profit_pct,
-            max_holding_days=max_holding_days
+            holding_days=holding_days
         )
         
         backtest_results = results
         
         # Calculate performance metrics
-        metrics = engine.calculate_metrics(results)
-        
-        # Generate charts
-        equity_curve = engine.generate_equity_curve(results)
-        returns_distribution = engine.generate_returns_distribution(results)
+        metrics = engine.calculate_performance_metrics(results)
         
         return jsonify({
             'success': True,
             'metrics': metrics,
-            'equity_curve': equity_curve,
-            'returns_distribution': returns_distribution,
             'total_trades': len(results)
         })
     

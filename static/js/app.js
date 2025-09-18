@@ -94,20 +94,11 @@ class BacktestDashboard {
             return;
         }
         
-        // Check if credentials are set up
-        const hasCredentials = await this.checkCredentials();
-        if (!hasCredentials) {
-            this.showAlert('Please setup your Angel One API credentials first. Click "Setup API Credentials" button.', 'warning');
-            return;
-        }
-
-        const stopLoss = parseFloat(document.getElementById('stopLoss').value);
-        const targetProfit = parseFloat(document.getElementById('targetProfit').value);
-        const maxHoldingDays = parseInt(document.getElementById('maxHoldingDays').value);
+        const holdingDays = parseInt(document.getElementById('holdingDays').value);
 
         // Validate parameters
-        if (stopLoss <= 0 || targetProfit <= 0 || maxHoldingDays <= 0) {
-            this.showAlert('Please enter valid parameters', 'warning');
+        if (holdingDays <= 0) {
+            this.showAlert('Please enter valid holding days', 'warning');
             return;
         }
 
@@ -120,9 +111,7 @@ class BacktestDashboard {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    stop_loss_pct: stopLoss,
-                    target_profit_pct: targetProfit,
-                    max_holding_days: maxHoldingDays
+                    holding_days: holdingDays
                 })
             });
 
@@ -142,23 +131,10 @@ class BacktestDashboard {
         }
     }
 
-    async checkCredentials() {
-        try {
-            const response = await fetch('/credentials_status');
-            const result = await response.json();
-            return result.has_credentials;
-        } catch (error) {
-            return false;
-        }
-    }
 
     displayResults(results) {
         // Update metrics
         this.updateMetrics(results.metrics);
-        
-        // Display charts
-        this.displayEquityCurve(results.equity_curve);
-        this.displayReturnsDistribution(results.returns_distribution);
         
         // Show results section
         document.getElementById('resultsSection').style.display = 'block';
@@ -172,45 +148,12 @@ class BacktestDashboard {
     updateMetrics(metrics) {
         document.getElementById('winRate').textContent = metrics.win_rate || '-';
         document.getElementById('totalTrades').textContent = metrics.total_trades || '-';
-        document.getElementById('avgReturn').textContent = metrics.avg_pnl_pct || '-';
-        document.getElementById('riskReward').textContent = metrics.risk_reward_ratio || '-';
-        document.getElementById('maxDrawdown').textContent = metrics.max_drawdown_pct || '-';
+        document.getElementById('avgReturn').textContent = metrics.avg_return || '-';
+        document.getElementById('totalReturn').textContent = metrics.total_return || '-';
         document.getElementById('bestTrade').textContent = metrics.best_trade || '-';
         document.getElementById('worstTrade').textContent = metrics.worst_trade || '-';
-        document.getElementById('avgHoldingDays').textContent = metrics.avg_holding_days || '-';
     }
 
-    displayEquityCurve(equityCurveData) {
-        try {
-            const data = JSON.parse(equityCurveData);
-            if (data && data.data) {
-                Plotly.newPlot('equityCurve', data.data, data.layout, {
-                    responsive: true,
-                    displayModeBar: true
-                });
-            }
-        } catch (error) {
-            console.error('Error displaying equity curve:', error);
-            document.getElementById('equityCurve').innerHTML = 
-                '<p class="text-muted text-center">Unable to display equity curve</p>';
-        }
-    }
-
-    displayReturnsDistribution(returnsData) {
-        try {
-            const data = JSON.parse(returnsData);
-            if (data && data.data) {
-                Plotly.newPlot('returnsDistribution', data.data, data.layout, {
-                    responsive: true,
-                    displayModeBar: true
-                });
-            }
-        } catch (error) {
-            console.error('Error displaying returns distribution:', error);
-            document.getElementById('returnsDistribution').innerHTML = 
-                '<p class="text-muted text-center">Unable to display returns distribution</p>';
-        }
-    }
 
     async exportResults() {
         if (!this.backtestResults) {
