@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timedelta
 import logging
 from backtest_engine import BacktestEngine
+from kite_client import KiteDataClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +19,7 @@ app.secret_key = 'your-secret-key-here'
 # Global variables
 uploaded_data = None
 backtest_results = None
+kite_client = None
 
 @app.route('/')
 def index():
@@ -82,8 +84,12 @@ def run_backtest():
         data = request.get_json()
         holding_days = int(data.get('holding_days', 10))
         
-        # Initialize backtest engine
-        engine = BacktestEngine()
+        # Check if Kite Connect is authenticated
+        if kite_client is None or not kite_client.is_authenticated:
+            return jsonify({'error': 'Kite Connect not authenticated. Please setup credentials first.'}), 400
+        
+        # Initialize backtest engine with Kite Connect client
+        engine = BacktestEngine(kite_client)
         
         # Run backtest
         logger.info("Starting simple backtest...")
@@ -134,6 +140,78 @@ def export_results():
     except Exception as e:
         logger.error(f"Export error: {str(e)}")
         return jsonify({'error': f'Error exporting results: {str(e)}'}), 500
+
+@app.route('/setup_credentials')
+def setup_credentials():
+    return render_template('setup_credentials.html')
+
+@app.route('/save_credentials', methods=['POST'])
+def save_credentials():
+    global kite_client
+    
+    try:
+        data = request.get_json()
+        api_key = data.get('api_key')
+        access_token = data.get('access_token')
+        
+        if not api_key or not access_token:
+            return jsonify({'error': 'API key and access token are required'}), 400
+        
+        # Initialize Kite Connect client
+        kite_client = KiteDataClient()
+        
+        # Authenticate
+        success = kite_client.authenticate(api_key, access_token)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Kite Connect credentials saved and authenticated successfully!'
+            })
+        else:
+            return jsonify({'error': 'Authentication failed. Please check your credentials.'}), 400
+            
+    except Exception as e:
+        logger.error(f"Error saving credentials: {str(e)}")
+        return jsonify({'error': f'Error saving credentials: {str(e)}'}), 500
+
+@app.route('/credentials_status')
+def credentials_status():
+    global kite_client
+    
+    if kite_client and kite_client.is_authenticated:
+        return jsonify({
+            'has_credentials': True,
+            'data_source': 'Zerodha Kite Connect',
+            'message': 'Kite Connect is authenticated and ready!'
+        })
+    else:
+        return jsonify({
+            'has_credentials': False,
+            'data_source': 'None',
+            'message': 'Please setup Kite Connect credentials'
+        })
+
+@app.route('/test_connection')
+def test_connection():
+    global kite_client
+    
+    try:
+        if kite_client and kite_client.is_authenticated:
+            success = kite_client.test_connection()
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Kite Connect connection test successful!'
+                })
+            else:
+                return jsonify({'error': 'Kite Connect connection test failed'}), 400
+        else:
+            return jsonify({'error': 'Kite Connect not authenticated'}), 400
+            
+    except Exception as e:
+        logger.error(f"Connection test error: {str(e)}")
+        return jsonify({'error': f'Connection test failed: {str(e)}'}), 500
 
 @app.route('/health')
 def health_check():

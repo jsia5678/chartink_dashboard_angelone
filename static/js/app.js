@@ -94,6 +94,13 @@ class BacktestDashboard {
             return;
         }
         
+        // Check if Kite Connect credentials are set up
+        const hasCredentials = await this.checkCredentials();
+        if (!hasCredentials) {
+            this.showAlert('Please setup Kite Connect credentials first. Click "Setup Credentials" button.', 'warning');
+            return;
+        }
+        
         const holdingDays = parseInt(document.getElementById('holdingDays').value);
 
         // Validate parameters
@@ -154,6 +161,15 @@ class BacktestDashboard {
         document.getElementById('worstTrade').textContent = metrics.worst_trade || '-';
     }
 
+    async checkCredentials() {
+        try {
+            const response = await fetch('/credentials_status');
+            const result = await response.json();
+            return result.has_credentials;
+        } catch (error) {
+            return false;
+        }
+    }
 
     async exportResults() {
         if (!this.backtestResults) {

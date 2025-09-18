@@ -3,15 +3,17 @@ import numpy as np
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+from kite_client import KiteDataClient
 
 logger = logging.getLogger(__name__)
 
 class BacktestEngine:
     """
-    Minimal backtesting engine - ready for your new data source
+    Backtesting engine using Zerodha Kite Connect API
     """
     
-    def __init__(self):
+    def __init__(self, kite_client: KiteDataClient):
+        self.kite_client = kite_client
         self.results = []
     
     def run_backtest(self, trades_df: pd.DataFrame, holding_days: int = 10) -> pd.DataFrame:
@@ -28,29 +30,48 @@ class BacktestEngine:
         logger.info(f"Starting simple backtest with {len(trades_df)} trades")
         logger.info(f"Parameters: Holding Days={holding_days}")
         
-        # TODO: Add your new data source integration here
         results = []
         
         for idx, trade in trades_df.iterrows():
             try:
                 logger.info(f"Processing trade {idx + 1}/{len(trades_df)}: {trade['stock_name']}")
                 
-                # TODO: Replace this with your new data source logic
-                # Get entry price, exit price after holding_days, calculate returns
+                symbol = trade['stock_name']
+                entry_datetime = trade['entry_datetime']
+                
+                # Get entry price from Kite Connect
+                entry_price = self.kite_client.get_entry_price(symbol, entry_datetime)
+                
+                if entry_price is None:
+                    logger.warning(f"Could not get entry price for {symbol}")
+                    continue
+                
+                # Get exit price after holding_days
+                exit_price = self.kite_client.get_exit_price(symbol, entry_datetime, holding_days)
+                
+                if exit_price is None:
+                    logger.warning(f"Could not get exit price for {symbol}")
+                    continue
+                
+                # Calculate returns
+                pnl = exit_price - entry_price
+                pnl_pct = (pnl / entry_price) * 100
+                
+                exit_date = entry_datetime + timedelta(days=holding_days)
                 
                 result = {
-                    'stock_name': trade['stock_name'],
-                    'entry_date': trade['entry_date'],
-                    'entry_price': 0.0,  # TODO: Get from your data source
-                    'exit_date': (pd.to_datetime(trade['entry_date']) + timedelta(days=holding_days)).strftime('%Y-%m-%d'),
-                    'exit_price': 0.0,  # TODO: Get from your data source
+                    'stock_name': symbol,
+                    'entry_date': entry_datetime.strftime('%Y-%m-%d'),
+                    'entry_price': round(entry_price, 2),
+                    'exit_date': exit_date.strftime('%Y-%m-%d'),
+                    'exit_price': round(exit_price, 2),
                     'days_held': holding_days,
-                    'pnl': 0.0,  # TODO: Calculate from entry/exit prices
-                    'pnl_pct': 0.0  # TODO: Calculate percentage return
+                    'pnl': round(pnl, 2),
+                    'pnl_pct': round(pnl_pct, 2)
                 }
                 
                 results.append(result)
-                logger.info(f"Trade processed: {trade['stock_name']}")
+                logger.info(f"Trade completed: {symbol} - {pnl_pct:.2f}% in {holding_days} days")
                 
             except Exception as e:
                 logger.error(f"Error processing trade {idx + 1}: {str(e)}")
