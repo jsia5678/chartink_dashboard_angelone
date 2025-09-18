@@ -214,6 +214,38 @@ def test_connection():
         logger.error(f"Connection test error: {str(e)}")
         return jsonify({'error': f'Connection test failed: {str(e)}'}), 500
 
+@app.route('/kite_redirect')
+def kite_redirect():
+    """Handle Kite Connect redirect with request_token"""
+    request_token = request.args.get('request_token')
+    status = request.args.get('status')
+    
+    if status == 'success' and request_token:
+        return f"""
+        <html>
+        <head><title>Kite Connect Success</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px;">
+            <h2>✅ Kite Connect Login Successful!</h2>
+            <p><strong>Request Token:</strong> {request_token}</p>
+            <p>Copy this request token and use it in your access token generation script.</p>
+            <hr>
+            <p><a href="/">← Back to Dashboard</a></p>
+        </body>
+        </html>
+        """
+    else:
+        return f"""
+        <html>
+        <head><title>Kite Connect Error</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px;">
+            <h2>❌ Kite Connect Login Failed</h2>
+            <p>Status: {status}</p>
+            <hr>
+            <p><a href="/">← Back to Dashboard</a></p>
+        </body>
+        </html>
+        """
+
 @app.route('/health')
 def health_check():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
