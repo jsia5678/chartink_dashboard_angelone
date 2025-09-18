@@ -28,28 +28,29 @@ class BacktestEngine:
         logger.info(f"Starting simple backtest with {len(trades_df)} trades")
         logger.info(f"Parameters: Holding Days={holding_days}")
         
-        # TODO: Replace this with your new data source integration
-        # For now, return mock results
+        # TODO: Add your new data source integration here
         results = []
         
         for idx, trade in trades_df.iterrows():
             try:
                 logger.info(f"Processing trade {idx + 1}/{len(trades_df)}: {trade['stock_name']}")
                 
-                # Mock result - replace with your new data source
+                # TODO: Replace this with your new data source logic
+                # Get entry price, exit price after holding_days, calculate returns
+                
                 result = {
                     'stock_name': trade['stock_name'],
                     'entry_date': trade['entry_date'],
-                    'entry_price': 100.0,  # Mock price
+                    'entry_price': 0.0,  # TODO: Get from your data source
                     'exit_date': (pd.to_datetime(trade['entry_date']) + timedelta(days=holding_days)).strftime('%Y-%m-%d'),
-                    'exit_price': 105.0,  # Mock price
+                    'exit_price': 0.0,  # TODO: Get from your data source
                     'days_held': holding_days,
-                    'pnl': 5.0,  # Mock P&L
-                    'pnl_pct': 5.0  # Mock return %
+                    'pnl': 0.0,  # TODO: Calculate from entry/exit prices
+                    'pnl_pct': 0.0  # TODO: Calculate percentage return
                 }
                 
                 results.append(result)
-                logger.info(f"Trade completed: {trade['stock_name']} - 5.00% in {holding_days} days")
+                logger.info(f"Trade processed: {trade['stock_name']}")
                 
             except Exception as e:
                 logger.error(f"Error processing trade {idx + 1}: {str(e)}")
