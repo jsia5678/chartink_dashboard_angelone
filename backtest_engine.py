@@ -3,17 +3,17 @@ import numpy as np
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from kite_client import KiteDataClient
+from data_provider import ProfessionalDataProvider
 
 logger = logging.getLogger(__name__)
 
 class BacktestEngine:
     """
-    Backtesting engine using Zerodha Kite Connect API
+    Professional backtesting engine using data provider (like algo companies)
     """
     
-    def __init__(self, kite_client: KiteDataClient):
-        self.kite_client = kite_client
+    def __init__(self, data_provider: ProfessionalDataProvider):
+        self.data_provider = data_provider
         self.results = []
     
     def run_backtest(self, trades_df: pd.DataFrame, holding_days: int = 10) -> pd.DataFrame:
@@ -39,15 +39,15 @@ class BacktestEngine:
                 symbol = trade['stock_name']
                 entry_datetime = trade['entry_datetime']
                 
-                # Get entry price from Kite Connect
-                entry_price = self.kite_client.get_entry_price(symbol, entry_datetime)
-                
-                if entry_price is None:
-                    logger.warning(f"Could not get entry price for {symbol}")
-                    continue
-                
-                # Get exit price after holding_days
-                exit_price = self.kite_client.get_exit_price(symbol, entry_datetime, holding_days)
+                         # Get entry price from professional data provider
+                         entry_price = self.data_provider.get_entry_price(symbol, entry_datetime)
+                         
+                         if entry_price is None:
+                             logger.warning(f"Could not get entry price for {symbol}")
+                             continue
+                         
+                         # Get exit price after holding_days
+                         exit_price = self.data_provider.get_exit_price(symbol, entry_datetime, holding_days)
                 
                 if exit_price is None:
                     logger.warning(f"Could not get exit price for {symbol}")

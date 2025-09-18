@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta
 import logging
 from backtest_engine import BacktestEngine
-from kite_client import KiteDataClient
+from data_provider import ProfessionalDataProvider
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +19,7 @@ app.secret_key = 'your-secret-key-here'
 # Global variables
 uploaded_data = None
 backtest_results = None
-kite_client = None
+data_provider = None # Global variable for professional data provider
 
 @app.route('/')
 def index():
@@ -74,7 +74,7 @@ def upload_file():
 
 @app.route('/run_backtest', methods=['POST'])
 def run_backtest():
-    global uploaded_data, backtest_results
+    global uploaded_data, backtest_results, data_provider
     
     try:
         if uploaded_data is None:
@@ -84,12 +84,12 @@ def run_backtest():
         data = request.get_json()
         holding_days = int(data.get('holding_days', 10))
         
-        # Check if Kite Connect is authenticated
-        if kite_client is None or not kite_client.is_authenticated:
-            return jsonify({'error': 'Kite Connect not authenticated. Please setup credentials first.'}), 400
+        # Check if data provider is authenticated
+        if data_provider is None or not data_provider.is_authenticated:
+            return jsonify({'error': 'Data provider not authenticated. Please setup credentials first.'}), 400
         
-        # Initialize backtest engine with Kite Connect client
-        engine = BacktestEngine(kite_client)
+        # Initialize backtest engine with professional data provider
+        engine = BacktestEngine(data_provider)
         
         # Run backtest
         logger.info("Starting simple backtest...")
@@ -147,27 +147,26 @@ def setup_credentials():
 
 @app.route('/save_credentials', methods=['POST'])
 def save_credentials():
-    global kite_client
+    global data_provider
     
     try:
         data = request.get_json()
         api_key = data.get('api_key')
         api_secret = data.get('api_secret')
-        access_token = data.get('access_token')
         
-        if not api_key or not api_secret or not access_token:
-            return jsonify({'error': 'API key, API secret, and access token are required'}), 400
+        if not api_key or not api_secret:
+            return jsonify({'error': 'API key and API secret are required'}), 400
         
-        # Initialize Kite Connect client
-        kite_client = KiteDataClient()
+        # Initialize professional data provider
+        data_provider = ProfessionalDataProvider()
         
         # Authenticate
-        success = kite_client.authenticate(api_key, api_secret, access_token)
+        success = data_provider.authenticate(api_key, api_secret)
         
         if success:
             return jsonify({
                 'success': True,
-                'message': 'Kite Connect credentials saved and authenticated successfully!'
+                'message': 'Professional data provider authenticated successfully!'
             })
         else:
             return jsonify({'error': 'Authentication failed. Please check your credentials.'}), 400
@@ -178,242 +177,42 @@ def save_credentials():
 
 @app.route('/credentials_status')
 def credentials_status():
-    global kite_client
+    global data_provider
     
-    if kite_client and kite_client.is_authenticated:
+    if data_provider and data_provider.is_authenticated:
         return jsonify({
             'has_credentials': True,
-            'data_source': 'Zerodha Kite Connect',
-            'message': 'Kite Connect is authenticated and ready!'
+            'data_source': 'Professional Data Provider',
+            'message': 'Data provider is authenticated and ready!'
         })
     else:
         return jsonify({
             'has_credentials': False,
             'data_source': 'None',
-            'message': 'Please setup Kite Connect credentials'
+            'message': 'Please setup data provider credentials'
         })
 
 @app.route('/test_connection')
 def test_connection():
-    global kite_client
+    global data_provider
     
     try:
-        if kite_client and kite_client.is_authenticated:
-            success = kite_client.test_connection()
+        if data_provider and data_provider.is_authenticated:
+            success = data_provider.test_connection()
             if success:
                 return jsonify({
                     'success': True,
-                    'message': 'Kite Connect connection test successful!'
+                    'message': 'Data provider connection test successful!'
                 })
             else:
-                return jsonify({'error': 'Kite Connect connection test failed'}), 400
+                return jsonify({'error': 'Data provider connection test failed'}), 400
         else:
-            return jsonify({'error': 'Kite Connect not authenticated'}), 400
+            return jsonify({'error': 'Data provider not authenticated'}), 400
             
     except Exception as e:
         logger.error(f"Connection test error: {str(e)}")
         return jsonify({'error': f'Connection test failed: {str(e)}'}), 500
 
-@app.route('/kite_redirect')
-def kite_redirect():
-    """Handle Kite Connect redirect with request_token and automatically exchange for access_token"""
-    import hashlib
-    import requests
-    
-    request_token = request.args.get('request_token')
-    status = request.args.get('status')
-    
-    if status == 'success' and request_token:
-        try:
-            # Your Kite Connect credentials (hardcoded for this demo)
-            API_KEY = "frzvtsavhoshiqca"
-            API_SECRET = "xgpm2uv9kskqluzfoa4tg7fa61a3ztd7"
-            
-            # Generate checksum (SHA-256 of api_key + request_token + api_secret)
-            checksum = hashlib.sha256(f"{API_KEY}{request_token}{API_SECRET}".encode()).hexdigest()
-            
-            # POST to /session/token to get access_token
-            token_url = "https://api.kite.trade/session/token"
-            headers = {"X-Kite-Version": "3"}
-            data = {
-                "api_key": API_KEY,
-                "request_token": request_token,
-                "checksum": checksum
-            }
-            
-            logger.info(f"Exchanging request_token for access_token...")
-            response = requests.post(token_url, headers=headers, data=data)
-            
-            if response.status_code == 200:
-                token_data = response.json()
-                if token_data.get('status') == 'success':
-                    access_token = token_data['data']['access_token']
-                    user_name = token_data['data']['user_name']
-                    user_id = token_data['data']['user_id']
-                    
-                    logger.info(f"Successfully obtained access_token for user: {user_name}")
-                    
-                    return f"""
-                    <html>
-                    <head>
-                        <title>Kite Connect Success</title>
-                        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-                        <style>
-                            body {{ background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }}
-                            .success-container {{ max-width: 600px; margin: 50px auto; background: white; border-radius: 15px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
-                            .token-box {{ background: #f8f9fa; border: 2px solid #28a745; border-radius: 10px; padding: 20px; margin: 20px 0; }}
-                            .btn-custom {{ border-radius: 25px; padding: 12px 30px; font-weight: 600; }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="success-container text-center">
-                            <div class="mb-4">
-                                <i class="fas fa-check-circle" style="font-size: 4rem; color: #28a745;"></i>
-                            </div>
-                            <h2 class="text-success mb-3">🎉 Kite Connect Login Successful!</h2>
-                            <p class="text-muted mb-4">Welcome, <strong>{user_name}</strong> (ID: {user_id})</p>
-                            
-                            <div class="token-box">
-                                <h5 class="text-success mb-3">✅ Access Token Generated Successfully!</h5>
-                                <div class="mb-3">
-                                    <label class="form-label"><strong>Access Token:</strong></label>
-                                    <input type="text" class="form-control" value="{access_token}" readonly style="font-family: monospace; background: #fff;">
-                                </div>
-                                <button class="btn btn-outline-success btn-sm" onclick="navigator.clipboard.writeText('{access_token}')">
-                                    📋 Copy Access Token
-                                </button>
-                            </div>
-                            
-                            <div class="alert alert-info">
-                                <strong>Next Steps:</strong><br>
-                                1. Copy the access token above<br>
-                                2. Go to <a href="/setup_credentials" class="alert-link">Setup Credentials</a><br>
-                                3. Enter your API Key, API Secret, and this Access Token<br>
-                                4. Click "Save & Test Credentials"
-                            </div>
-                            
-                            <div class="mt-4">
-                                <a href="/setup_credentials" class="btn btn-primary btn-custom me-3">
-                                    <i class="fas fa-cog"></i> Setup Credentials
-                                </a>
-                                <a href="/" class="btn btn-outline-secondary btn-custom">
-                                    <i class="fas fa-home"></i> Back to Dashboard
-                                </a>
-                            </div>
-                        </div>
-                        
-                        <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
-                    </body>
-                    </html>
-                    """
-                else:
-                    error_msg = token_data.get('message', 'Unknown error')
-                    logger.error(f"Token exchange failed: {error_msg}")
-                    return f"""
-                    <html>
-                    <head><title>Token Exchange Failed</title></head>
-                    <body style="font-family: Arial; text-align: center; padding: 50px;">
-                        <h2>❌ Token Exchange Failed</h2>
-                        <p>Error: {error_msg}</p>
-                        <hr>
-                        <p><a href="/setup_credentials">← Try Again</a></p>
-                    </body>
-                    </html>
-                    """
-            else:
-                logger.error(f"HTTP error {response.status_code}: {response.text}")
-                return f"""
-                <html>
-                <head><title>HTTP Error</title></head>
-                <body style="font-family: Arial; text-align: center; padding: 50px;">
-                    <h2>❌ HTTP Error {response.status_code}</h2>
-                    <p>Response: {response.text}</p>
-                    <hr>
-                    <p><a href="/setup_credentials">← Try Again</a></p>
-                </body>
-                </html>
-                """
-                
-        except Exception as e:
-            logger.error(f"Error in token exchange: {str(e)}")
-            return f"""
-            <html>
-            <head><title>Error</title></head>
-            <body style="font-family: Arial; text-align: center; padding: 50px;">
-                <h2>❌ Error</h2>
-                <p>Error: {str(e)}</p>
-                <hr>
-                <p><a href="/setup_credentials">← Try Again</a></p>
-            </body>
-            </html>
-            """
-    else:
-        return f"""
-        <html>
-        <head><title>Kite Connect Error</title></head>
-        <body style="font-family: Arial; text-align: center; padding: 50px;">
-            <h2>❌ Kite Connect Login Failed</h2>
-            <p>Status: {status}</p>
-            <p>Request Token: {request_token}</p>
-            <hr>
-            <p><a href="/setup_credentials">← Try Again</a></p>
-        </body>
-        </html>
-        """
-
-@app.route('/generate_login_url')
-def generate_login_url():
-    """Generate Kite Connect login URL"""
-    API_KEY = "frzvtsavhoshiqca"
-    login_url = f"https://kite.zerodha.com/connect/login?v=3&api_key={API_KEY}"
-    
-    return f"""
-    <html>
-    <head>
-        <title>Kite Connect Login</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-        <style>
-            body {{ background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }}
-            .login-container {{ max-width: 600px; margin: 50px auto; background: white; border-radius: 15px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
-            .btn-custom {{ border-radius: 25px; padding: 12px 30px; font-weight: 600; }}
-        </style>
-    </head>
-    <body>
-        <div class="login-container text-center">
-            <div class="mb-4">
-                <i class="fas fa-external-link-alt" style="font-size: 4rem; color: #007bff;"></i>
-            </div>
-            <h2 class="text-primary mb-3">🔗 Kite Connect Login</h2>
-            <p class="text-muted mb-4">Click the button below to login to Kite Connect and get your access token automatically!</p>
-            
-            <div class="alert alert-info mb-4">
-                <strong>What happens next:</strong><br>
-                1. You'll be redirected to Kite Connect login page<br>
-                2. Login with your Zerodha credentials<br>
-                3. You'll be redirected back with your access token<br>
-                4. The system will automatically set up your credentials!
-            </div>
-            
-            <div class="mb-4">
-                <a href="{login_url}" class="btn btn-primary btn-custom btn-lg" target="_blank">
-                    <i class="fas fa-sign-in-alt"></i> Login to Kite Connect
-                </a>
-            </div>
-            
-            <div class="mt-4">
-                <a href="/setup_credentials" class="btn btn-outline-secondary btn-custom me-3">
-                    <i class="fas fa-cog"></i> Manual Setup
-                </a>
-                <a href="/" class="btn btn-outline-secondary btn-custom">
-                    <i class="fas fa-home"></i> Back to Dashboard
-                </a>
-            </div>
-        </div>
-        
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
-    </body>
-    </html>
-    """
 
 @app.route('/health')
 def health_check():
