@@ -1,29 +1,20 @@
 # Chartink Backtesting Dashboard
 
-A comprehensive web-based backtesting dashboard for Chartink scanner signals using multiple data sources for maximum reliability and coverage.
+A clean, minimal backtesting dashboard for Chartink scanner signals. Ready for your new data source integration.
 
 ## Features
 
 - **CSV Upload**: Upload Chartink scanner signals directly via drag-and-drop interface
-- **Multi-Source Data**: Uses NSE unofficial API, Alpha Vantage, Yahoo Finance, and mock data fallbacks
-- **Advanced Backtesting**: Support for Stop Loss, Target Profit, and time-based exits
-- **Performance Metrics**: Win rate, drawdown, risk-reward ratio, and more
-- **Interactive Charts**: Equity curve and returns distribution visualization
+- **Simple Backtesting**: Hold positions for N days and calculate returns
+- **Performance Metrics**: Win rate, total trades, average return, best/worst trade
 - **Export Results**: Download backtest results to CSV format
-- **Smart Fallbacks**: Automatically switches between data sources for maximum coverage
 - **Railway Ready**: Easy deployment on Railway.com with no server management
 
 ## Quick Start
 
-### 1. Data Sources (No API Credentials Required!)
+### 1. Clean Codebase
 
-This dashboard works out of the box with multiple data sources:
-- **NSE Unofficial API**: Free historical data for Indian stocks
-- **Yahoo Finance**: Free historical data for global stocks  
-- **Alpha Vantage**: Optional free tier (25 requests/day)
-- **Mock Data**: Realistic test data for missing stocks
-
-**Optional**: Add Alpha Vantage API key for additional coverage (get free key from [alphavantage.co](https://www.alphavantage.co/support/#api-key))
+This dashboard has been cleaned of all complex data source integrations and is ready for your new software integration.
 
 ### 2. Upload Your Chartink CSV
 
@@ -33,90 +24,83 @@ This dashboard works out of the box with multiple data sources:
 
 ### 3. Configure Backtest Parameters
 
-- **Stop Loss %**: Set your stop loss percentage (e.g., 5%)
-- **Target Profit %**: Set your target profit percentage (e.g., 10%)
-- **Max Holding Days**: Maximum days to hold a position (e.g., 10 days)
+- **Hold for how many days?**: Set the number of days to hold each position (e.g., 10 days)
 
 ### 4. Run Backtest
 
-Click "Run Backtest" to analyze your strategy performance.
+Click "Run Simple Backtest" to process your signals and see the results.
 
 ### 5. View Results
 
-- **Performance Metrics**: Win rate, average returns, max drawdown
-- **Equity Curve**: Visual representation of your strategy performance
-- **Trade Details**: Individual trade results and analysis
-- **Export**: Download results as CSV for further analysis
+The dashboard will show:
+- **Performance Metrics**: Win rate, total trades, average return, etc.
+- **Results Table**: Individual trade results with entry/exit prices and returns
+- **Export Option**: Download results as CSV
 
 ## CSV Format
 
-The dashboard supports Chartink CSV exports with the following format:
+Your CSV file should have these columns:
+- `date`: Entry date and time (format: DD-MM-YYYY H:MM AM/PM)
+- `symbol`: Stock symbol (e.g., RELIANCE, TCS)
+- `marketcapname`: Market cap category
+- `sector`: Stock sector
 
+Example:
 ```csv
 date,symbol,marketcapname,sector
-06-08-2025 10:15 am,YATHARTH,Midcap,Pharmaceuticals
-06-08-2025 10:15 am,KAMATHOTEL,Smallcap,Services
+06-08-2025 10:15 am,RELIANCE,Large Cap,Energy
+06-08-2025 10:30 am,TCS,Large Cap,Technology
 ```
+
+## Integration Ready
+
+The codebase is clean and ready for your new data source integration:
+
+- **`backtest_engine.py`**: Contains mock data - replace with your new data source
+- **`app.py`**: Clean Flask app with minimal dependencies
+- **No complex data clients**: All removed for clean integration
 
 ## Deployment
 
 ### Railway.com (Recommended)
 
 1. Fork this repository
-2. Connect your GitHub account to Railway
-3. Deploy from GitHub
-4. No environment variables needed!
+2. Connect to Railway.com
+3. Deploy automatically
+4. No server management required
 
 ### Local Development
 
-1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Run the app: `python app.py`
-4. Open http://localhost:5000
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-## Technical Details
+# Run the application
+python app.py
+```
 
-- **Backend**: Flask (Python)
-- **Data Source**: Yahoo Finance (yfinance)
-- **Frontend**: Bootstrap 5 + Plotly.js
-- **Database**: In-memory (no database required)
-- **Deployment**: Railway.com ready
+## File Structure
 
-## Supported Exchanges
+```
+├── app.py                 # Main Flask application
+├── backtest_engine.py     # Backtesting logic (ready for your data source)
+├── templates/
+│   └── index.html        # Dashboard UI
+├── static/
+│   └── js/
+│       └── app.js        # Frontend JavaScript
+├── requirements.txt      # Python dependencies
+├── Procfile             # Railway deployment config
+└── README.md            # This file
+```
 
-- **NSE**: National Stock Exchange of India
-- **BSE**: Bombay Stock Exchange
-- **NSE F&O**: NSE Futures & Options
-- **BSE F&O**: BSE Futures & Options
+## Next Steps
 
-## Data Coverage
+1. **Integrate your new data source** in `backtest_engine.py`
+2. **Replace mock data** with real price data
+3. **Test with your CSV files**
+4. **Deploy to Railway.com**
 
-- **Historical Data**: Available for most Indian stocks
-- **Timeframes**: 1 minute, 5 minutes, 15 minutes, 30 minutes, 1 hour, 1 day
-- **Data Quality**: High-quality OHLC data from Yahoo Finance
+## Support
 
-## Troubleshooting
-
-### Common Issues
-
-1. **No data found for symbol**: The stock symbol might not be available on Yahoo Finance
-2. **CSV format error**: Ensure your CSV has the correct format with date and symbol columns
-3. **Deployment issues**: Check Railway logs for any deployment errors
-
-### Getting Help
-
-- Check the Railway deployment logs
-- Verify your CSV format matches the expected structure
-- Ensure the stock symbols are valid NSE/BSE symbols
-
-## License
-
-This project is open source and available under the MIT License.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Disclaimer
-
-This tool is for educational and research purposes only. Always do your own research before making investment decisions. Past performance does not guarantee future results.
+This is a clean, minimal codebase ready for your new data source integration. All complex data source logic has been removed for easy customization.
