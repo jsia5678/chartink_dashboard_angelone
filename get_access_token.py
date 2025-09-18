@@ -9,9 +9,9 @@ import requests
 import webbrowser
 from urllib.parse import urlparse, parse_qs
 
-# Your Kite Connect credentials
-API_KEY = "frzvtsavhoshiqca"
-API_SECRET = "xgpm2uv9kskqluzfoa4tg7fa61a3ztd7"
+# Your Kite Connect credentials - REPLACE WITH YOUR OWN
+API_KEY = "YOUR_API_KEY_HERE"
+API_SECRET = "YOUR_API_SECRET_HERE"
 REDIRECT_URL = "https://chartinkdashboardangelone-production.up.railway.app"
 
 def generate_checksum(api_key, request_token, api_secret):
