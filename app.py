@@ -216,23 +216,137 @@ def test_connection():
 
 @app.route('/kite_redirect')
 def kite_redirect():
-    """Handle Kite Connect redirect with request_token"""
+    """Handle Kite Connect redirect with request_token and automatically exchange for access_token"""
+    import hashlib
+    import requests
+    
     request_token = request.args.get('request_token')
     status = request.args.get('status')
     
     if status == 'success' and request_token:
-        return f"""
-        <html>
-        <head><title>Kite Connect Success</title></head>
-        <body style="font-family: Arial; text-align: center; padding: 50px;">
-            <h2>✅ Kite Connect Login Successful!</h2>
-            <p><strong>Request Token:</strong> {request_token}</p>
-            <p>Copy this request token and use it in your access token generation script.</p>
-            <hr>
-            <p><a href="/">← Back to Dashboard</a></p>
-        </body>
-        </html>
-        """
+        try:
+            # Your Kite Connect credentials (hardcoded for this demo)
+            API_KEY = "frzvtsavhoshiqca"
+            API_SECRET = "xgpm2uv9kskqluzfoa4tg7fa61a3ztd7"
+            
+            # Generate checksum (SHA-256 of api_key + request_token + api_secret)
+            checksum = hashlib.sha256(f"{API_KEY}{request_token}{API_SECRET}".encode()).hexdigest()
+            
+            # POST to /session/token to get access_token
+            token_url = "https://api.kite.trade/session/token"
+            headers = {"X-Kite-Version": "3"}
+            data = {
+                "api_key": API_KEY,
+                "request_token": request_token,
+                "checksum": checksum
+            }
+            
+            logger.info(f"Exchanging request_token for access_token...")
+            response = requests.post(token_url, headers=headers, data=data)
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                if token_data.get('status') == 'success':
+                    access_token = token_data['data']['access_token']
+                    user_name = token_data['data']['user_name']
+                    user_id = token_data['data']['user_id']
+                    
+                    logger.info(f"Successfully obtained access_token for user: {user_name}")
+                    
+                    return f"""
+                    <html>
+                    <head>
+                        <title>Kite Connect Success</title>
+                        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+                        <style>
+                            body {{ background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }}
+                            .success-container {{ max-width: 600px; margin: 50px auto; background: white; border-radius: 15px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
+                            .token-box {{ background: #f8f9fa; border: 2px solid #28a745; border-radius: 10px; padding: 20px; margin: 20px 0; }}
+                            .btn-custom {{ border-radius: 25px; padding: 12px 30px; font-weight: 600; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="success-container text-center">
+                            <div class="mb-4">
+                                <i class="fas fa-check-circle" style="font-size: 4rem; color: #28a745;"></i>
+                            </div>
+                            <h2 class="text-success mb-3">🎉 Kite Connect Login Successful!</h2>
+                            <p class="text-muted mb-4">Welcome, <strong>{user_name}</strong> (ID: {user_id})</p>
+                            
+                            <div class="token-box">
+                                <h5 class="text-success mb-3">✅ Access Token Generated Successfully!</h5>
+                                <div class="mb-3">
+                                    <label class="form-label"><strong>Access Token:</strong></label>
+                                    <input type="text" class="form-control" value="{access_token}" readonly style="font-family: monospace; background: #fff;">
+                                </div>
+                                <button class="btn btn-outline-success btn-sm" onclick="navigator.clipboard.writeText('{access_token}')">
+                                    📋 Copy Access Token
+                                </button>
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <strong>Next Steps:</strong><br>
+                                1. Copy the access token above<br>
+                                2. Go to <a href="/setup_credentials" class="alert-link">Setup Credentials</a><br>
+                                3. Enter your API Key, API Secret, and this Access Token<br>
+                                4. Click "Save & Test Credentials"
+                            </div>
+                            
+                            <div class="mt-4">
+                                <a href="/setup_credentials" class="btn btn-primary btn-custom me-3">
+                                    <i class="fas fa-cog"></i> Setup Credentials
+                                </a>
+                                <a href="/" class="btn btn-outline-secondary btn-custom">
+                                    <i class="fas fa-home"></i> Back to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
+                    </body>
+                    </html>
+                    """
+                else:
+                    error_msg = token_data.get('message', 'Unknown error')
+                    logger.error(f"Token exchange failed: {error_msg}")
+                    return f"""
+                    <html>
+                    <head><title>Token Exchange Failed</title></head>
+                    <body style="font-family: Arial; text-align: center; padding: 50px;">
+                        <h2>❌ Token Exchange Failed</h2>
+                        <p>Error: {error_msg}</p>
+                        <hr>
+                        <p><a href="/setup_credentials">← Try Again</a></p>
+                    </body>
+                    </html>
+                    """
+            else:
+                logger.error(f"HTTP error {response.status_code}: {response.text}")
+                return f"""
+                <html>
+                <head><title>HTTP Error</title></head>
+                <body style="font-family: Arial; text-align: center; padding: 50px;">
+                    <h2>❌ HTTP Error {response.status_code}</h2>
+                    <p>Response: {response.text}</p>
+                    <hr>
+                    <p><a href="/setup_credentials">← Try Again</a></p>
+                </body>
+                </html>
+                """
+                
+        except Exception as e:
+            logger.error(f"Error in token exchange: {str(e)}")
+            return f"""
+            <html>
+            <head><title>Error</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h2>❌ Error</h2>
+                <p>Error: {str(e)}</p>
+                <hr>
+                <p><a href="/setup_credentials">← Try Again</a></p>
+            </body>
+            </html>
+            """
     else:
         return f"""
         <html>
@@ -240,11 +354,66 @@ def kite_redirect():
         <body style="font-family: Arial; text-align: center; padding: 50px;">
             <h2>❌ Kite Connect Login Failed</h2>
             <p>Status: {status}</p>
+            <p>Request Token: {request_token}</p>
             <hr>
-            <p><a href="/">← Back to Dashboard</a></p>
+            <p><a href="/setup_credentials">← Try Again</a></p>
         </body>
         </html>
         """
+
+@app.route('/generate_login_url')
+def generate_login_url():
+    """Generate Kite Connect login URL"""
+    API_KEY = "frzvtsavhoshiqca"
+    login_url = f"https://kite.zerodha.com/connect/login?v=3&api_key={API_KEY}"
+    
+    return f"""
+    <html>
+    <head>
+        <title>Kite Connect Login</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            body {{ background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }}
+            .login-container {{ max-width: 600px; margin: 50px auto; background: white; border-radius: 15px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
+            .btn-custom {{ border-radius: 25px; padding: 12px 30px; font-weight: 600; }}
+        </style>
+    </head>
+    <body>
+        <div class="login-container text-center">
+            <div class="mb-4">
+                <i class="fas fa-external-link-alt" style="font-size: 4rem; color: #007bff;"></i>
+            </div>
+            <h2 class="text-primary mb-3">🔗 Kite Connect Login</h2>
+            <p class="text-muted mb-4">Click the button below to login to Kite Connect and get your access token automatically!</p>
+            
+            <div class="alert alert-info mb-4">
+                <strong>What happens next:</strong><br>
+                1. You'll be redirected to Kite Connect login page<br>
+                2. Login with your Zerodha credentials<br>
+                3. You'll be redirected back with your access token<br>
+                4. The system will automatically set up your credentials!
+            </div>
+            
+            <div class="mb-4">
+                <a href="{login_url}" class="btn btn-primary btn-custom btn-lg" target="_blank">
+                    <i class="fas fa-sign-in-alt"></i> Login to Kite Connect
+                </a>
+            </div>
+            
+            <div class="mt-4">
+                <a href="/setup_credentials" class="btn btn-outline-secondary btn-custom me-3">
+                    <i class="fas fa-cog"></i> Manual Setup
+                </a>
+                <a href="/" class="btn btn-outline-secondary btn-custom">
+                    <i class="fas fa-home"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+        
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
+    </body>
+    </html>
+    """
 
 @app.route('/health')
 def health_check():
