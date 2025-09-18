@@ -5,9 +5,9 @@
 **NEVER commit your real API credentials to git!**
 
 Your Kite Connect credentials:
-- **API Key**: `frzvtsavhoshiqca`
-- **API Secret**: `xgpm2uv9kskqluzfoa4tg7fa61a3ztd7`
-- **Client ID**: `FTH348`
+- **API Key**: `your_api_key_here`
+- **API Secret**: `your_api_secret_here`
+- **Client ID**: `your_client_id_here`
 
 ## 📋 Pre-Deployment Checklist
 
@@ -38,7 +38,7 @@ git push origin main
 ### 2. Set Environment Variables in Railway
 Go to your Railway dashboard and add:
 ```
-KITE_API_KEY=frzvtsavhoshiqca
+KITE_API_KEY=your_api_key_here
 KITE_ACCESS_TOKEN=your_access_token_here
 SECRET_KEY=your_secret_key_here
 ```
@@ -53,7 +53,7 @@ SECRET_KEY=your_secret_key_here
 ### 1. Create `.env` file (NEVER commit this!)
 ```bash
 # .env file (local only)
-KITE_API_KEY=frzvtsavhoshiqca
+KITE_API_KEY=your_api_key_here
 KITE_ACCESS_TOKEN=your_access_token_here
 SECRET_KEY=your_secret_key_here
 ```
@@ -84,9 +84,9 @@ python app.py
 
 - **App Name**: chartink-backtesting-dashboard
 - **Redirect URL**: http://localhost:5000 (local) / https://your-app.railway.app (production)
-- **Postback URL**: https://chartinkdashboardangelone-production.up.railway.app/
+- **Postback URL**: https://your-app.railway.app/
 - **Status**: Active
-- **Expires**: 19 Oct 2025
+- **Expires**: Check your Kite Connect dashboard
 
 ## ✅ Ready for Production!
 
