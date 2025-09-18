@@ -5,14 +5,8 @@ import json
 import os
 from datetime import datetime, timedelta
 import logging
-import requests
-import re
-import hashlib
-from urllib.parse import urlparse, parse_qs
-from io import BytesIO
 from backtest_engine import BacktestEngine
 from kite_client import KiteDataClient
-from kiteconnect import KiteConnect
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,75 +20,6 @@ app.secret_key = 'your-secret-key-here'
 uploaded_data = None
 backtest_results = None
 kite_client = None
-
-def get_request_token_automated(credentials):
-    """
-    Automate the process of obtaining a request token for the Kite Connect API
-    Based on: https://gist.github.com/sagamantus/949737c6cf3c94a9901a4830c4c5cf9b
-    """
-    try:
-        kite = KiteConnect(api_key=credentials["api_key"])
-        
-        session = requests.Session()
-        response = session.get(kite.login_url())
-        
-        # User login POST request
-        login_payload = {
-            "user_id": credentials["username"],
-            "password": credentials["password"],
-        }
-        login_response = session.post("https://kite.zerodha.com/api/login", login_payload)
-        
-        if login_response.status_code != 200:
-            raise Exception(f"Login failed: {login_response.text}")
-        
-        login_data = login_response.json()
-        if login_data.get('status') != 'success':
-            raise Exception(f"Login failed: {login_data.get('message', 'Unknown error')}")
-        
-        # TOTP POST request (if TOTP is provided)
-        if credentials.get("totp_key"):
-            try:
-                import pyotp
-                totp_payload = {
-                    "user_id": credentials["username"],
-                    "request_id": login_data["data"]["request_id"],
-                    "twofa_value": pyotp.TOTP(credentials["totp_key"]).now(),
-                    "twofa_type": "totp",
-                    "skip_session": True,
-                }
-                totp_response = session.post("https://kite.zerodha.com/api/twofa", totp_payload)
-                
-                if totp_response.status_code != 200:
-                    raise Exception(f"TOTP failed: {totp_response.text}")
-                    
-            except ImportError:
-                logger.warning("pyotp not available, skipping TOTP")
-            except Exception as e:
-                logger.warning(f"TOTP failed: {str(e)}")
-        
-        # Extract request token from redirect URL
-        try:
-            response = session.get(kite.login_url())
-            parse_result = urlparse(response.url)
-            query_params = parse_qs(parse_result.query)
-        except Exception as e:
-            pattern = r"request_token=[A-Za-z0-9]+"
-            match = re.search(pattern, str(e))
-            if match:
-                query_params = parse_qs(match.group())
-            else:
-                raise Exception(f"Could not extract request token: {str(e)}")
-        
-        if "request_token" not in query_params:
-            raise Exception("Request token not found in response")
-            
-        request_token = query_params["request_token"][0]
-        return request_token
-        
-    except Exception as e:
-        logger.error(f"Automated login failed: {str(e)}")
-        raise e
 
 @app.route('/')
 def index():
@@ -250,85 +175,6 @@ def save_credentials():
     except Exception as e:
         logger.error(f"Error saving credentials: {str(e)}")
         return jsonify({'error': f'Error saving credentials: {str(e)}'}), 500
-
-@app.route('/automated_login', methods=['POST'])
-def automated_login():
-    """Automated login using username, password, and optional TOTP"""
-    global kite_client
-    
-    try:
-        data = request.get_json()
-        api_key = data.get('api_key')
-        api_secret = data.get('api_secret')
-        username = data.get('username')
-        password = data.get('password')
-        totp_key = data.get('totp_key', '')  # Optional TOTP
-        
-        if not all([api_key, api_secret, username, password]):
-            return jsonify({'error': 'API key, API secret, username, and password are required'}), 400
-        
-        # Prepare credentials for automated login
-        credentials = {
-            "api_key": api_key,
-            "username": username,
-            "password": password,
-            "totp_key": totp_key
-        }
-        
-        logger.info("Starting automated Kite Connect login...")
-        
-        # Get request token using automated method
-        request_token = get_request_token_automated(credentials)
-        logger.info(f"Successfully obtained request token: {request_token[:10]}...")
-        
-        # Generate checksum and exchange for access token
-        checksum = hashlib.sha256(f"{api_key}{request_token}{api_secret}".encode()).hexdigest()
-        
-        token_url = "https://api.kite.trade/session/token"
-        headers = {"X-Kite-Version": "3"}
-        token_data = {
-            "api_key": api_key,
-            "request_token": request_token,
-            "checksum": checksum
-        }
-        
-        logger.info("Exchanging request token for access token...")
-        response = requests.post(token_url, headers=headers, data=token_data)
-        
-        if response.status_code == 200:
-            token_response = response.json()
-            if token_response.get('status') == 'success':
-                access_token = token_response['data']['access_token']
-                user_name = token_response['data']['user_name']
-                user_id = token_response['data']['user_id']
-                
-                logger.info(f"Successfully obtained access token for user: {user_name}")
-                
-                # Initialize and authenticate Kite Connect client
-                kite_client = KiteDataClient()
-                success = kite_client.authenticate(api_key, api_secret, access_token)
-                
-                if success:
-                    return jsonify({
-                        'success': True,
-                        'message': f'Automated login successful! Welcome {user_name}',
-                        'user_name': user_name,
-                        'user_id': user_id,
-                        'access_token': access_token
-                    })
-                else:
-                    return jsonify({'error': 'Failed to authenticate with obtained access token'}), 400
-            else:
-                error_msg = token_response.get('message', 'Unknown error')
-                logger.error(f"Token exchange failed: {error_msg}")
-                return jsonify({'error': f'Token exchange failed: {error_msg}'}), 400
-        else:
-            logger.error(f"HTTP error {response.status_code}: {response.text}")
-            return jsonify({'error': f'HTTP error {response.status_code}: {response.text}'}), 400
-            
-    except Exception as e:
-        logger.error(f"Automated login error: {str(e)}")
-        return jsonify({'error': f'Automated login failed: {str(e)}'}), 500
 
 @app.route('/credentials_status')
 def credentials_status():
