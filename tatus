@@ -1,5 +1,0 @@
-[33m337bf9e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Allow authentication without TOTP if secret is invalid or too short
-[33m2326a51[m Fix TOTP validation and add TOTP test endpoint
-[33m98abae3[m Fix TOTP Base32 validation and add TOTP testing endpoint
-[33m14fc7fd[m Add better error handling and SmartAPI library import fallbacks
-[33m5d0e7a7[m Fix SmartAPI client to use dynamic credentials instead of environment variables

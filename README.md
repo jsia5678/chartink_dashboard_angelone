@@ -1,10 +1,11 @@
 # Chartink Backtesting Dashboard
 
-A clean, minimal backtesting dashboard for Chartink scanner signals. Ready for your new data source integration.
+A comprehensive backtesting dashboard for Chartink scanner signals using Zerodha Kite Connect API for real historical data.
 
 ## Features
 
 - **CSV Upload**: Upload Chartink scanner signals directly via drag-and-drop interface
+- **Zerodha Kite Connect**: Real historical data from NSE/BSE via official API
 - **Simple Backtesting**: Hold positions for N days and calculate returns
 - **Performance Metrics**: Win rate, total trades, average return, best/worst trade
 - **Export Results**: Download backtest results to CSV format
@@ -12,9 +13,13 @@ A clean, minimal backtesting dashboard for Chartink scanner signals. Ready for y
 
 ## Quick Start
 
-### 1. Clean Codebase
+### 1. Setup Kite Connect Credentials
 
-This dashboard has been cleaned of all complex data source integrations and is ready for your new software integration.
+1. Get your API key from [Kite Connect](https://kite.trade/)
+2. Get your access token through the login flow
+3. Click "Setup Credentials" on the dashboard
+4. Enter your API key and access token
+5. Test the connection
 
 ### 2. Upload Your Chartink CSV
 
@@ -52,13 +57,14 @@ date,symbol,marketcapname,sector
 06-08-2025 10:30 am,TCS,Large Cap,Technology
 ```
 
-## Integration Ready
+## Kite Connect Integration
 
-The codebase is clean and ready for your new data source integration:
+The dashboard is fully integrated with Zerodha Kite Connect:
 
-- **`backtest_engine.py`**: Contains mock data - replace with your new data source
-- **`app.py`**: Clean Flask app with minimal dependencies
-- **No complex data clients**: All removed for clean integration
+- **`kite_client.py`**: Complete Kite Connect API integration
+- **`backtest_engine.py`**: Uses real historical data from Kite Connect
+- **`app.py`**: Flask app with authentication and data fetching
+- **Credentials Setup**: Secure credential management system
 
 ## Deployment
 
@@ -94,13 +100,19 @@ python app.py
 └── README.md            # This file
 ```
 
+## API Documentation
+
+- **Kite Connect API**: [https://kite.trade/docs/connect/v3/](https://kite.trade/docs/connect/v3/)
+- **Historical Data**: [https://kite.trade/docs/connect/v3/historical/](https://kite.trade/docs/connect/v3/historical/)
+- **Python Client**: [https://github.com/zerodha/pykiteconnect](https://github.com/zerodha/pykiteconnect)
+
 ## Next Steps
 
-1. **Integrate your new data source** in `backtest_engine.py`
-2. **Replace mock data** with real price data
+1. **Get Kite Connect credentials** from [kite.trade](https://kite.trade/)
+2. **Setup credentials** in the dashboard
 3. **Test with your CSV files**
 4. **Deploy to Railway.com**
 
 ## Support
 
-This is a clean, minimal codebase ready for your new data source integration. All complex data source logic has been removed for easy customization.
+This dashboard is fully integrated with Zerodha Kite Connect API for real historical data fetching. All data source issues have been resolved with the official API.
