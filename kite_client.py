@@ -18,19 +18,24 @@ class KiteDataClient:
         self.kite = None
         self.instruments_cache = None
         self.is_authenticated = False
+        self.api_key = None
+        self.api_secret = None
         
-    def authenticate(self, api_key: str, access_token: str) -> bool:
+    def authenticate(self, api_key: str, api_secret: str, access_token: str) -> bool:
         """
         Authenticate with Kite Connect API
         
         Args:
             api_key: Your Kite Connect API key
+            api_secret: Your Kite Connect API secret
             access_token: Your access token from login flow
             
         Returns:
             bool: True if authentication successful
         """
         try:
+            self.api_key = api_key
+            self.api_secret = api_secret
             self.kite = KiteConnect(api_key=api_key)
             self.kite.set_access_token(access_token)
             

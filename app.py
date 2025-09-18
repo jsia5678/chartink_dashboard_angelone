@@ -152,16 +152,17 @@ def save_credentials():
     try:
         data = request.get_json()
         api_key = data.get('api_key')
+        api_secret = data.get('api_secret')
         access_token = data.get('access_token')
         
-        if not api_key or not access_token:
-            return jsonify({'error': 'API key and access token are required'}), 400
+        if not api_key or not api_secret or not access_token:
+            return jsonify({'error': 'API key, API secret, and access token are required'}), 400
         
         # Initialize Kite Connect client
         kite_client = KiteDataClient()
         
         # Authenticate
-        success = kite_client.authenticate(api_key, access_token)
+        success = kite_client.authenticate(api_key, api_secret, access_token)
         
         if success:
             return jsonify({

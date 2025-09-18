@@ -39,6 +39,7 @@ git push origin main
 Go to your Railway dashboard and add:
 ```
 KITE_API_KEY=your_api_key_here
+KITE_API_SECRET=your_api_secret_here
 KITE_ACCESS_TOKEN=your_access_token_here
 SECRET_KEY=your_secret_key_here
 ```
@@ -54,6 +55,7 @@ SECRET_KEY=your_secret_key_here
 ```bash
 # .env file (local only)
 KITE_API_KEY=your_api_key_here
+KITE_API_SECRET=your_api_secret_here
 KITE_ACCESS_TOKEN=your_access_token_here
 SECRET_KEY=your_secret_key_here
 ```
