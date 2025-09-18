@@ -109,9 +109,16 @@ python app.py
 ## Next Steps
 
 1. **Get Kite Connect credentials** from [kite.trade](https://kite.trade/)
-2. **Setup credentials** in the dashboard
+2. **Setup credentials** in the dashboard (NEVER commit real credentials to git!)
 3. **Test with your CSV files**
 4. **Deploy to Railway.com**
+
+## Security Notes
+
+⚠️ **IMPORTANT**: Never commit your real API credentials to git!
+- Use environment variables for production
+- Keep credentials in `.env` file (which is gitignored)
+- Use the credentials setup page in the dashboard for secure storage
 
 ## Support
 
